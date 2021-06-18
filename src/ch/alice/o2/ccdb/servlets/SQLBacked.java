@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -509,6 +510,35 @@ public class SQLBacked extends HttpServlet {
 
 					db.query("CREATE TRIGGER ccdb_increment_trigger AFTER INSERT ON ccdb FOR EACH ROW EXECUTE PROCEDURE ccdb_increment();", true);
 					db.query("CREATE TRIGGER ccdb_decrement_trigger AFTER DELETE ON ccdb FOR EACH ROW EXECUTE PROCEDURE ccdb_decrement();", true);
+
+					HashMap<String, String> idNameInTable = new HashMap<String, String>();
+					idNameInTable.put("ccdb_paths", "pathid");
+					idNameInTable.put("ccdb_contenttype", "contentTypeId");
+
+					HashMap<String, String> valueNameInTable = new HashMap<String, String>();
+					valueNameInTable.put("ccdb_paths", "path");
+					valueNameInTable.put("ccdb_contenttype", "contentType");
+					// cache utils
+					String[] tables = { "ccdb_paths", "ccdb_contenttype" };
+					for (String tableName : tables) {
+						String idName = idNameInTable.get(tableName);
+						String valueName = valueNameInTable.get(tableName);
+						db.query("create or replace function " + tableName + "_latest (value_to_insert text) returns bigint as $$\n"
+								+ "begin\n"
+								+ "    return (select " + idName + " from " + tableName + " where " + valueName + " = value_to_insert);\n"
+								+ "end $$ language plpgsql;");
+					}
+					db.query("create or replace function ccdb_metadata_latest (values_to_insert hstore) returns hstore as $$\n" +
+							"declare \n" +
+							"	actual_ids_to_insert hstore := ''::hstore;\n" +
+							"	value text;\n" +
+							"begin\n" +
+							"	foreach value in array akeys(values_to_insert) loop\n" +
+							"		actual_ids_to_insert := actual_ids_to_insert || hstore((select metadataId from ccdb_metadata where metadataKey = value)::text, values_to_insert -> value);\n" +
+							"	end loop;\n" +
+							"	return actual_ids_to_insert;\n" +
+							"end\n" +
+							"$$ language plpgsql;");
 				}
 				else
 					throw new IllegalArgumentException("Only PostgreSQL support is implemented at the moment");

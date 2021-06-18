@@ -1,0 +1,5 @@
+*jar
+package/apache*
+build
+*.class
+eclipse-style.xml
