@@ -49,7 +49,7 @@ public class SQLTruncate extends HttpServlet {
 
 				response.sendError(HttpServletResponse.SC_NO_CONTENT);
 
-				final List<Integer> pathIDs = SQLObject.getPathIDsWithPatternFallback(parser);
+				final List<Integer> pathIDs = SQLObject.getPathIDsWithPatternFallback(parser);		// there could appear inconsitencies from cache (but nothing serious)
 
 				if (pathIDs != null)
 					try (DBFunctions db = SQLObject.getDB()) {
