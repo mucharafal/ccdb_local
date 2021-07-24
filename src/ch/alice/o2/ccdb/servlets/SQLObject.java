@@ -5,28 +5,20 @@ import java.net.InetAddress;
 import java.sql.Array;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.Map.Entry;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -58,13 +50,19 @@ import lazyj.Utils;
  * @author costing
  * @since 2017-10-13
  */
-public class SQLObject implements Comparable<SQLObject> {
+public abstract class SQLObject implements Comparable<SQLObject> {
 	private static ExtProperties config = new ExtProperties(Options.getOption("config.dir", "."),
 			Options.getOption("config.file", "config"));
 
-	private static final Monitor monitor = MonitorFactory.getMonitor(SQLObject.class.getCanonicalName());
+	protected static final Monitor monitor = MonitorFactory.getMonitor(SQLObject.class.getCanonicalName());
 
-	private static Logger logger = Logger.getLogger(SQLObject.class.getCanonicalName());
+	protected static final Logger logger = Logger.getLogger(SQLObject.class.getCanonicalName());
+
+	public static final boolean multiMasterVersion = Options.getOption("multimaster", "false").equals("true");
+
+	public static String selectAllFromCCDB() {
+		return multiMasterVersion ? SQLObjectCachelessImpl.selectAllFromCCDB : SQLObjectImpl.selectAllFromCCDB;
+	}
 
 	/**
 	 * @return the database connection
@@ -79,22 +77,31 @@ public class SQLObject implements Comparable<SQLObject> {
 	/**
 	 * Unique identifier of an object
 	 */
-	public final UUID id;
+	public UUID id;
+
 
 	/**
-	 * Path identifier
+	 * @return the pathId of this object
 	 */
-	public Integer pathId = null;
+	public abstract Integer getPathId();
+	/**
+	 * @param pathId the pathId which should be set
+	 */
+	public abstract void setPathId(Integer pathId);
 
 	/**
-	 * String representation of the path
+	 * @return the full path of this object
 	 */
-	public String path;
+	public abstract String getPath();
+	/**
+	 * @param path the path which should be set
+	 */
+	public abstract void setPath(String path);
 
 	/**
 	 * Creation time, in epoch milliseconds
 	 */
-	public final long createTime;
+	public long createTime;
 
 	/**
 	 * Starting time of the validity of this object, in epoch milliseconds.
@@ -112,6 +119,26 @@ public class SQLObject implements Comparable<SQLObject> {
 	 * Metadata fields set for this object
 	 */
 	public Map<Integer, String> metadata = new HashMap<>();
+
+	/**
+	 * @return Metadata fields set for this object
+	 */
+	public abstract Map<String, String> getMetadataKeyValue();
+
+	/**
+	 *
+	 * @param key
+	 * @return old value
+	 */
+	public abstract String removeFromMetadata(Integer key);
+
+	/**
+	 *
+	 * @param key in store
+	 * @param value new value for key
+	 * @return old value
+	 */
+	public abstract String addToMetadata(Integer key, String value);
 
 	/**
 	 * Servers holding a replica of this object
@@ -143,7 +170,14 @@ public class SQLObject implements Comparable<SQLObject> {
 	/**
 	 * Content type
 	 */
-	public String contentType = null;
+	private String contentType = null;
+	public String getContentType() {
+		return contentType;
+	}
+
+	public void setContentType(String contentType) {
+		this.contentType = contentType;
+	}
 
 	/**
 	 * IP address of the client that has uploaded this object
@@ -155,8 +189,8 @@ public class SQLObject implements Comparable<SQLObject> {
 	 */
 	public long lastModified = System.currentTimeMillis();
 
-	private transient boolean existing = false;
-	private transient boolean tainted = false;
+	protected transient boolean existing = false;
+	protected transient boolean tainted = false;
 
 	/**
 	 * Create an empty object
@@ -169,7 +203,11 @@ public class SQLObject implements Comparable<SQLObject> {
 
 		assert path != null && path.length() > 0;
 
-		this.path = path;
+		this.setPath(path);
+	}
+
+	public static SQLObject fromPath(final String path) {
+		return multiMasterVersion ? new SQLObjectCachelessImpl(path) : new SQLObjectImpl(path);
 	}
 
 	/**
@@ -180,7 +218,7 @@ public class SQLObject implements Comparable<SQLObject> {
 	 * @param uuid unique identifier to force on the new object. Can be
 	 *            <code>null</code> to automatically generate one.
 	 */
-	public SQLObject(final HttpServletRequest request, final String path, final UUID uuid) {
+	protected SQLObject(final HttpServletRequest request, final String path, final UUID uuid) {
 		createTime = System.currentTimeMillis();
 
 		if (uuid != null) {
@@ -204,13 +242,14 @@ public class SQLObject implements Comparable<SQLObject> {
 
 		assert path != null && path.length() > 0;
 
-		this.path = path;
+		this.setPath(path);
 	}
 
-	/**
-	 * @param db database row to load the fields from
-	 */
-	public SQLObject(final DBFunctions db) {
+	public static SQLObject fromRequest(final HttpServletRequest request, final String path, final UUID uuid) {
+		return multiMasterVersion ? new SQLObjectCachelessImpl(request, path, uuid) : new SQLObjectImpl(request, path, uuid);
+	}
+
+	protected SQLObject(final DBFunctions db) {
 		id = (UUID) db.getObject("id");
 
 		createTime = db.getl("createtime");
@@ -220,16 +259,7 @@ public class SQLObject implements Comparable<SQLObject> {
 		md5 = Format.replace(db.gets("md5"), "-", "");
 		initialValidity = db.getl("initialvalidity");
 		fileName = db.gets("filename");
-		contentType = getContentType(Integer.valueOf(db.geti("contenttype")));
 		uploadedFrom = db.gets("uploadedfrom");
-
-		pathId = Integer.valueOf(db.geti("pathId")); // should convert back to the path
-
-		final Map<?, ?> md = (Map<?, ?>) db.getObject("metadata");
-
-		if (md != null && md.size() > 0)
-			for (final Map.Entry<?, ?> entry : md.entrySet())
-				metadata.put(Integer.valueOf(entry.getKey().toString()), entry.getValue().toString());
 
 		final Array replicasObject = (Array) db.getObject("replicas");
 
@@ -238,13 +268,20 @@ public class SQLObject implements Comparable<SQLObject> {
 				final Integer[] r = (Integer[]) replicasObject.getArray();
 
 				Collections.addAll(replicas, r);
-			}
-			catch (@SuppressWarnings("unused") final SQLException e) {
+			} catch (@SuppressWarnings("unused") final SQLException e) {
 				// ignore
 			}
 
 		existing = true;
 	}
+
+	public static SQLObject fromDb(final DBFunctions db) {
+		return multiMasterVersion ? new SQLObjectCachelessImpl(db) : new SQLObjectImpl(db);
+	}
+
+	protected abstract boolean updateObjectInDB(DBFunctions db, String replicaArray);
+
+	protected abstract boolean insertObjectIntoDB(DBFunctions db, String replicaArray);
 
 	/**
 	 * @param request request details, to decorate the metadata with
@@ -262,8 +299,8 @@ public class SQLObject implements Comparable<SQLObject> {
 					setProperty(existing ? "UpdatedBy" : "UploadedBy", account.getDefaultUser());
 			}
 
-			if (pathId == null)
-				pathId = getPathID(path, true);
+			if (this.getPathId() == null)
+				 this.setPathId(getPathID(getPath(), true));
 
 			try (DBFunctions db = getDB()) {
 				final StringBuilder sb = new StringBuilder();
@@ -287,18 +324,12 @@ public class SQLObject implements Comparable<SQLObject> {
 
 				lastModified = System.currentTimeMillis();
 
-				Map<String, String> metadataWithPK = metadata.entrySet().stream().map((entry) -> {
-					return entry;
-				}).collect(Collectors.toMap(e -> METADATA_REVERSE.get(e.getKey()), Entry::getValue));
-				getContentTypeID(contentType, true);
+				Map<String, String> metadataWithPK = getMetadataKeyValue();
+
+				getContentTypeID(getContentType(), true);
 
 				if (existing) {
-					final boolean ok = db.query("UPDATE ccdb SET "
-							+ "validity=tsrange(to_timestamp(?) AT TIME ZONE 'UTC', to_timestamp(?) AT TIME ZONE 'UTC'),"
-							+ "replicas=?::int[], " + "contenttype=ccdb_contenttype_latest(?), "
-							+ "metadata=ccdb_metadata_latest(?), " + "lastmodified=?" + "WHERE id=?;",
-							false, Double.valueOf(validFrom / 1000.), Double.valueOf(validUntil / 1000.), replicaArray,
-							contentType, metadataWithPK, Long.valueOf(lastModified), id);
+					final boolean ok = updateObjectInDB(db, replicaArray);
 
 					if (ok) {
 						existing = true;
@@ -314,19 +345,11 @@ public class SQLObject implements Comparable<SQLObject> {
 					for (int attempt = 0; attempt < 2; attempt++) {
 						if (attempt > 0) {
 							// if another instance has cleaned up this path
-							removePathID(pathId);
-							pathId = getPathID(path, true);
+							removePathID(getPathId());
+							setPathId(getPathID(getPath(), true));
 						}
 						
-						if (db.query("INSERT INTO ccdb (id, pathid, validity, createTime, replicas, size, \n"
-								+ "md5, initialvalidity, filename, contenttype, uploadedfrom, metadata, \n"
-								+ "lastmodified) VALUES (?, ccdb_paths_latest(?), \n"
-								+ "tsrange(to_timestamp(?) AT TIME ZONE 'UTC', to_timestamp(?) AT TIME ZONE 'UTC'), \n"
-								+ "?, ?::int[], ?, ?::uuid, ?, ?, ccdb_contenttype_latest(?), \n"
-								+ "	?::inet, ccdb_metadata_latest(?), ? );", false, id, path, Double.valueOf(validFrom / 1000.),
-								Double.valueOf(validUntil / 1000.), Long.valueOf(createTime), replicaArray,
-								Long.valueOf(size), md5, Long.valueOf(initialValidity), fileName, contentType,
-								uploadedFrom, metadataWithPK, Long.valueOf(lastModified))) {
+						if (insertObjectIntoDB(db, replicaArray)) {
 							existing = true;
 							tainted = false;
 							return true;
@@ -347,14 +370,10 @@ public class SQLObject implements Comparable<SQLObject> {
 	 */
 	public long getLastModified() {
 		try {
-			final Integer key = getMetadataID("LastModified", false);
+			final String md = getMetadataKeyValue().get("LastModified");
 
-			if (key != null) {
-				final String md = metadata.get(key);
-
-				if (md != null)
-					return Long.parseLong(md);
-			}
+			if (md != null)
+				return Long.parseLong(md);
 		}
 		catch (@SuppressWarnings("unused") final Throwable t) {
 			// ignore, the default below will
@@ -591,12 +610,12 @@ public class SQLObject implements Comparable<SQLObject> {
 			return;
 
 		if (value == null || value.isBlank()) {
-			final String oldValue = metadata.remove(keyID);
+			final String oldValue = this.removeFromMetadata(keyID);
 
 			tainted = tainted || oldValue != null;
 		}
 		else {
-			final String oldValue = metadata.put(keyID, value);
+			final String oldValue = this.addToMetadata(keyID, value);
 
 			tainted = tainted || !value.equals(oldValue);
 		}
@@ -606,12 +625,7 @@ public class SQLObject implements Comparable<SQLObject> {
 	 * @return the metadata keys
 	 */
 	public Set<String> getPropertiesKeys() {
-		final Set<String> ret = new HashSet<>(metadata.size());
-
-		for (final Integer metadataId : metadata.keySet())
-			ret.add(getMetadataString(metadataId));
-
-		return ret;
+		return getMetadataKeyValue().keySet();
 	}
 
 	/**
@@ -629,13 +643,9 @@ public class SQLObject implements Comparable<SQLObject> {
 	 *         key is not defined for this object
 	 */
 	public String getProperty(final String key, final String defaultValue) {
-		for (final Map.Entry<Integer, String> entry : metadata.entrySet()) {
+		String value = getMetadataKeyValue().get(key);
 
-			if (key.equals(getMetadataString(entry.getKey())))
-				return entry.getValue();
-		}
-
-		return defaultValue;
+		return value == null ? defaultValue : value;
 	}
 
 	/**
@@ -684,16 +694,6 @@ public class SQLObject implements Comparable<SQLObject> {
 		return false;
 	}
 
-	/**
-	 * @return the full path of this object
-	 */
-	public String getPath() {
-		if (path == null)
-			path = getPath(pathId);
-
-		return path;
-	}
-
 	private static Timestamp lastCacheLookup = Timestamp.valueOf("2020-01-01 01:01:01"); // those maps and timestamp are not protected
 	// against race conditions
 	private static Map<String, Integer> PATHS = new HashMap<>();
@@ -726,7 +726,7 @@ public class SQLObject implements Comparable<SQLObject> {
 		return pathIDs;
 	}
 
-	private static synchronized Integer getPathID(final String path, final boolean createIfNotExists) {
+	protected static synchronized Integer getPathID(final String path, final boolean createIfNotExists) {
 		Integer value = PATHS.get(path);
 
 		if (value != null)
@@ -801,11 +801,8 @@ public class SQLObject implements Comparable<SQLObject> {
 		return ret;
 	}
 
-	private static synchronized String getPath(final Integer pathId) {
-		String value = PATHS_REVERSE.get(pathId);
-
-		if (value != null)
-			return value;
+	protected static synchronized String getPath(final Integer pathId) {	// must be always correct
+		String value = null;
 
 		try (DBFunctions db = getDB()) {
 			db.query("SELECT path FROM ccdb_paths WHERE pathId=?;", false, pathId);
@@ -907,7 +904,7 @@ public class SQLObject implements Comparable<SQLObject> {
 	private static Map<String, Integer> CONTENTTYPE = new HashMap<>();
 	private static Map<Integer, String> CONTENTTYPE_REVERSE = new HashMap<>();
 
-	private static synchronized Integer getContentTypeID(final String contentType, final boolean createIfNotExists) {
+	protected static synchronized Integer getContentTypeID(final String contentType, final boolean createIfNotExists) {
 		if (contentType == null || contentType.isBlank())
 			return null;
 
@@ -953,7 +950,7 @@ public class SQLObject implements Comparable<SQLObject> {
 		return null;
 	}
 
-	private static synchronized String getContentType(final Integer contentTypeId) {
+	protected static synchronized String getContentType(final Integer contentTypeId) {
 		String value = CONTENTTYPE_REVERSE.get(contentTypeId);
 
 		if (value != null)
@@ -986,14 +983,14 @@ public class SQLObject implements Comparable<SQLObject> {
 
 			try (DBFunctions db = getDB()) {
 				if (!db.query(
-						"SELECT *,extract(epoch from lower(validity))*1000 as validfrom,extract(epoch from upper(validity))*1000 as validuntil FROM ccdb WHERE id=?;",
+						selectAllFromCCDB() + " WHERE id=?;",
 						false, id)) {
 					System.err.println("Query execution error");
 					return null;
 				}
 
 				if (db.moveNext())
-					return new SQLObject(db);
+					return SQLObject.fromDb(db);
 			}
 
 			return null;
@@ -1006,7 +1003,7 @@ public class SQLObject implements Comparable<SQLObject> {
 	 */
 	public static final SQLObject getMatchingObject(final RequestParser parser) {
 		try (Timing t = new Timing(monitor, "getMatchingObject_ms")) {
-			final Integer pathId = getPathID(parser.path, false);
+			final Integer pathId = getPathID(parser.path, false);		// todo
 
 			if (pathId == null)
 				return null;
@@ -1014,8 +1011,8 @@ public class SQLObject implements Comparable<SQLObject> {
 			final List<Object> arguments = new ArrayList<>();
 
 			try (DBFunctions db = getDB()) {
-				final StringBuilder q = new StringBuilder(
-						"SELECT *,extract(epoch from lower(validity))*1000 as validfrom,extract(epoch from upper(validity))*1000 as validuntil FROM ccdb WHERE pathId=?");
+				final StringBuilder q = new StringBuilder(selectAllFromCCDB());
+				q.append( " WHERE pathId=?");
 
 				arguments.add(pathId);
 
@@ -1065,7 +1062,7 @@ public class SQLObject implements Comparable<SQLObject> {
 				db.query(q.toString(), false, arguments.toArray(new Object[0]));
 
 				if (db.moveNext())
-					return new SQLObject(db);
+					return SQLObject.fromDb(db);
 
 				// System.err.println("No object for:\n" + q + "\nand\n" + arguments + "\n");
 
@@ -1076,8 +1073,8 @@ public class SQLObject implements Comparable<SQLObject> {
 
 	private static final void getMatchingObjects(final RequestParser parser, final Integer pathId,
 			final Collection<SQLObject> ret) {
-		final StringBuilder q = new StringBuilder(
-				"SELECT *,extract(epoch from lower(validity))*1000 as validfrom,extract(epoch from upper(validity))*1000 as validuntil FROM ccdb WHERE pathId=?");
+		final StringBuilder q = new StringBuilder(selectAllFromCCDB());
+		q.append( " WHERE pathId=?");
 
 		final List<Object> arguments = new ArrayList<>();
 
@@ -1136,7 +1133,7 @@ public class SQLObject implements Comparable<SQLObject> {
 
 			while (db.moveNext()) {
 				try {
-					ret.add(new SQLObject(db));
+					ret.add(SQLObject.fromDb(db));
 				}
 				catch (final Exception e) {
 					System.err.println("Got exception loading object " + db.geti("id") + " from DB: " + e.getMessage());
@@ -1185,14 +1182,15 @@ public class SQLObject implements Comparable<SQLObject> {
 		sb.append("Created: ").append(createTime).append(" (").append(new Date(createTime)).append(")\n");
 		sb.append("Last modified: ").append(lastModified).append(" (").append(new Date(lastModified)).append(")\n");
 		sb.append("Original file: ").append(fileName).append(", size: ").append(size).append(", md5: ").append(md5)
-				.append(", content type: ").append(contentType).append('\n');
+				.append(", content type: ").append(getContentType()).append('\n');
 		sb.append("Uploaded from: ").append(uploadedFrom).append('\n');
 
+		Map<String, String> metadata = getMetadataKeyValue();
 		if (metadata != null && metadata.size() > 0) {
 			sb.append("Metadata:\n");
 
-			for (final Map.Entry<Integer, String> entry : metadata.entrySet())
-				sb.append("  ").append(getMetadataString(entry.getKey())).append(" = ").append(entry.getValue())
+			for (final Map.Entry<String, String> entry : metadata.entrySet())
+				sb.append("  ").append(entry.getKey()).append(" = ").append(entry.getValue())
 						.append('\n');
 		}
 

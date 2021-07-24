@@ -222,8 +222,8 @@ public class Blob implements Comparable<Blob> {
 
 		cachedMetadataMap = new ConcurrentHashMap<>();
 
-		for (final Map.Entry<Integer, String> entry : ref.metadata.entrySet())
-			cachedMetadataMap.put(SQLObject.getMetadataString(entry.getKey()), entry.getValue());
+		for (final Map.Entry<String, String> entry : ref.getMetadataKeyValue().entrySet())
+			cachedMetadataMap.put(entry.getKey(), entry.getValue());
 
 		cachedMetadataMap.put("Valid-Until", String.valueOf(this.endTime));
 		cachedMetadataMap.put("Valid-From", String.valueOf(this.startTime));
@@ -232,8 +232,8 @@ public class Blob implements Comparable<Blob> {
 		if (ref.fileName != null)
 			cachedMetadataMap.put("OriginalFileName", ref.fileName);
 
-		if (ref.contentType != null)
-			cachedMetadataMap.put("Content-Type", ref.contentType);
+		if (ref.getContentType() != null)
+			cachedMetadataMap.put("Content-Type", ref.getContentType());
 
 		if (ref.md5 != null)
 			cachedMetadataMap.put("Content-MD5", ref.md5);
