@@ -86,6 +86,8 @@ public class Blob implements Comparable<Blob> {
 
 	private volatile boolean isCompleteRecalculate = true;
 
+	private volatile long superseededTimestamp = 0;
+
 	/**
 	 * Parameterized constructor - creates a Blob object to be sent that contains a
 	 * payload and a checksum. The checksum is the Utils.CHECKSUM_TYPE of the
@@ -1087,5 +1089,19 @@ public class Blob implements Comparable<Blob> {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Set the superseeded time to the current timestamp, returning this time
+	 * to this and all subsequent calls to this method afterwards
+	 * 
+	 * @param currentTime timestamp to set, if not set before
+	 * @return the timestamp since the object was superseeded
+	 */
+	long getOrSetSuperseededTimestamp(final long currentTime) {
+		if (superseededTimestamp == 0)
+			superseededTimestamp = currentTime;
+
+		return superseededTimestamp;
 	}
 }
