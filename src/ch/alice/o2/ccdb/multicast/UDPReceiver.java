@@ -62,7 +62,7 @@ public class UDPReceiver extends Thread {
 	/**
 	 * For how long superseded objects should be kept around, in case delayed processing needs them
 	 */
-	private static final long TTL_FOR_SUPERSEDED_OBJECTS = 1000 * Options.getIntOption("udpreceiver.superseeded_objects_ttl", 60);
+	private static final long TTL_FOR_SUPERSEDED_OBJECTS = 1000 * Options.getIntOption("udpreceiver.superseded_objects_ttl", 60);
 
 	private String multicastIPaddress = null;
 
@@ -716,7 +716,7 @@ public class UDPReceiver extends Thread {
 									// ignore
 								}
 
-								if (currentTime - b.getOrSetSuperseededTimestamp(currentTime) > TTL_FOR_SUPERSEDED_OBJECTS) {
+								if (currentTime - b.getOrSetSupersededTimestamp(currentTime) > TTL_FOR_SUPERSEDED_OBJECTS) {
 									// more than 2 minutes old and superseded by a newer one, can be removed
 									if (logger.isLoggable(Level.INFO))
 										logger.log(Level.INFO, "Removing superseded object for " + b.getKey() + ": " + b.getUuid() + " (valid since " + b.getStartTime() + "):\n" + b);

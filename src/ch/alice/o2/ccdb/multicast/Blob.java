@@ -86,7 +86,7 @@ public class Blob implements Comparable<Blob> {
 
 	private volatile boolean isCompleteRecalculate = true;
 
-	private volatile long superseededTimestamp = 0;
+	private volatile long supersededTimestamp = 0;
 
 	/**
 	 * Parameterized constructor - creates a Blob object to be sent that contains a
@@ -981,7 +981,8 @@ public class Blob implements Comparable<Blob> {
 		if (flagConstraints.isEmpty())
 			return true;
 
-		search: for (final Map.Entry<String, String> entry : flagConstraints.entrySet()) {
+		search:
+		for (final Map.Entry<String, String> entry : flagConstraints.entrySet()) {
 			final String metadataKey = entry.getKey().trim();
 			final String value = entry.getValue().trim();
 
@@ -1092,16 +1093,16 @@ public class Blob implements Comparable<Blob> {
 	}
 
 	/**
-	 * Set the superseeded time to the current timestamp, returning this time
+	 * Set the superseded time to the current timestamp, returning this time
 	 * to this and all subsequent calls to this method afterwards
 	 * 
 	 * @param currentTime timestamp to set, if not set before
-	 * @return the timestamp since the object was superseeded
+	 * @return the timestamp since the object was superseded
 	 */
-	long getOrSetSuperseededTimestamp(final long currentTime) {
-		if (superseededTimestamp == 0)
-			superseededTimestamp = currentTime;
+	long getOrSetSupersededTimestamp(final long currentTime) {
+		if (supersededTimestamp == 0)
+			supersededTimestamp = currentTime;
 
-		return superseededTimestamp;
+		return supersededTimestamp;
 	}
 }
