@@ -1,0 +1,1 @@
+curl -i -F blob=@/etc/passwd localhost:8080/Task/Detector/1/100000/quality=2
