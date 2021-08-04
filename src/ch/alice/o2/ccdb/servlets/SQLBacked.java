@@ -558,8 +558,8 @@ public class SQLBacked extends HttpServlet {
 								"        ctype.contenttype as contenttype_value, \n" +
 								"        ccdb_metadata_latest_key_value(ccdb.metadata) as metadata_key_value\n" +
 								"    from ccdb  \n" +
-								"        inner join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
-								"        inner join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;"
+								"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
+								"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;"
 						);
 					}
 				}
