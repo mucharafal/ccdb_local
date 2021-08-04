@@ -6,8 +6,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collection;
-import java.util.UUID;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.Principal;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -112,7 +117,27 @@ public class SQLObjectTest {
         assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), arrayOfObjects[0].id);
     }
 
+    @Test
+    void insertToDatabase() {
+        SQLObject object = SQLObject.fromPath("path");
+        HttpServletRequest request = new HttpServletRequestImpl();
 
+        object.save(request);
+
+        try(DBFunctions db = SQLObject.getDB()) {
+            db.query("select count(1) from ccdb;");
+            db.moveNext();
+            Integer numberOfObjects = db.geti(1);
+            assertEquals(5, numberOfObjects);
+        }
+
+        try(DBFunctions db = SQLObject.getDB()) {
+            db.query("select count(1) from ccdb_paths;");
+            db.moveNext();
+            Integer numberOfObjects = db.geti(1);
+            assertEquals(3, numberOfObjects);
+        }
+    }
 
 
 }
