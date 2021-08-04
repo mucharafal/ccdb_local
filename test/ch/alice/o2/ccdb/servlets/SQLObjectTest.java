@@ -6,19 +6,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.servlet.*;
 import javax.servlet.http.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.security.Principal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SQLObjectTest {
-    private static final UUID object1Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c");
-    private static final UUID object3Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c");
+    protected static final UUID object1Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c");
+    protected static final UUID object3Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c");
 
     @BeforeEach
     void setUp() {
@@ -117,9 +112,7 @@ public class SQLObjectTest {
         assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), arrayOfObjects[0].id);
     }
 
-    @Test
-    void insertToDatabase() {
-        SQLObject object = SQLObject.fromPath("path");
+    protected void saveInDatabase(SQLObject object, boolean isPathNew) {
         HttpServletRequest request = new HttpServletRequestImpl();
 
         object.save(request);
@@ -135,7 +128,7 @@ public class SQLObjectTest {
             db.query("select count(1) from ccdb_paths;");
             db.moveNext();
             Integer numberOfObjects = db.geti(1);
-            assertEquals(3, numberOfObjects);
+            assertEquals(isPathNew ? 3 : 2, numberOfObjects);
         }
 
         SQLObject objectReadFromDb = SQLObject.getObject(object.id);
@@ -143,28 +136,15 @@ public class SQLObjectTest {
     }
 
     @Test
+    void insertToDatabase() {
+        SQLObject object = SQLObject.fromPath("path");
+        saveInDatabase(object, true);
+    }
+
+    @Test
     void updateObjectInDatabase() {
         SQLObject object = SQLObject.getObject(object1Id);
-        HttpServletRequest request = new HttpServletRequestImpl();
-
-        object.save(request);
-
-        try(DBFunctions db = SQLObject.getDB()) {
-            db.query("select count(1) from ccdb;");
-            db.moveNext();
-            Integer numberOfObjects = db.geti(1);
-            assertEquals(4, numberOfObjects);
-        }
-
-        try(DBFunctions db = SQLObject.getDB()) {
-            db.query("select count(1) from ccdb_paths;");
-            db.moveNext();
-            Integer numberOfObjects = db.geti(1);
-            assertEquals(2, numberOfObjects);
-        }
-
-        SQLObject objectReadFromDb = SQLObject.getObject(object.id);
-        assertEquals(object, objectReadFromDb);
+        saveInDatabase(object, false);
     }
 
 
