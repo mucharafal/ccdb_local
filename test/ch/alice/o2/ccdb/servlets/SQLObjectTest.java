@@ -137,7 +137,37 @@ public class SQLObjectTest {
             Integer numberOfObjects = db.geti(1);
             assertEquals(3, numberOfObjects);
         }
+
+        SQLObject objectReadFromDb = SQLObject.getObject(object.id);
+        assertEquals(object, objectReadFromDb);
     }
+
+    @Test
+    void updateObjectInDatabase() {
+        SQLObject object = SQLObject.getObject(object1Id);
+        HttpServletRequest request = new HttpServletRequestImpl();
+
+        object.save(request);
+
+        try(DBFunctions db = SQLObject.getDB()) {
+            db.query("select count(1) from ccdb;");
+            db.moveNext();
+            Integer numberOfObjects = db.geti(1);
+            assertEquals(4, numberOfObjects);
+        }
+
+        try(DBFunctions db = SQLObject.getDB()) {
+            db.query("select count(1) from ccdb_paths;");
+            db.moveNext();
+            Integer numberOfObjects = db.geti(1);
+            assertEquals(2, numberOfObjects);
+        }
+
+        SQLObject objectReadFromDb = SQLObject.getObject(object.id);
+        assertEquals(object, objectReadFromDb);
+    }
+
+
 
 
 }
