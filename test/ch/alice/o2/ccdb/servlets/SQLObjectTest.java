@@ -40,8 +40,8 @@ public class SQLObjectTest {
     @AfterEach
     void tearDown() {
         try (DBFunctions db = SQLObject.getDB()) {
-            db.query("delete from ccdb where pathid < 1000 and pathid > 10;\n" +
-                    "delete from ccdb_paths where path in ('a', 'b', 'x', 'y');\n" +
+            db.query("delete from ccdb where pathid in (select pathid from ccdb_paths where path in ('a', 'b', 'x', 'y', 'path'));\n" +
+                    "delete from ccdb_paths where path in ('a', 'b', 'x', 'y', 'path');\n" +
                     "delete from ccdb_metadata where metadataKey in ('a', 'b', 'x', 'y');\n" +
                     "delete from ccdb_contenttype where contentType in ('a', 'b', 'x', 'y');"
             );
