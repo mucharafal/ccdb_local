@@ -57,7 +57,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 	protected static final Logger logger = Logger.getLogger(SQLObject.class.getCanonicalName());
 
-	public static final boolean multiMasterVersion = Options.getOption("multimaster", "false").equals("true");
+	public static boolean multiMasterVersion = Options.getOption("multimaster", "false").equals("true");
 
 	public static String selectAllFromCCDB() {
 		return multiMasterVersion ? SQLObjectCachelessImpl.selectAllFromCCDB : SQLObjectImpl.selectAllFromCCDB;
