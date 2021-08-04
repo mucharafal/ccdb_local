@@ -6,6 +6,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,10 +56,23 @@ public class SQLObjectTest {
     }
 
     @Test
-    void getMatchingObjectsFromDatabase() {
+    void getMatchingObjectFromDatabase() {
         RequestParser parser = new RequestParserImpl("x");
         SQLObject object1 = SQLObject.getMatchingObject(parser);
 
-        assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), object1.id);
+        assertEquals(object1.id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
     }
+
+    @Test
+    void getMatchingObjectsFromDatabase() {
+        RequestParser parser = new RequestParserImpl("x");
+        Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
+
+        assertEquals(objects.size(), 2);
+        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
+        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
+        assertEquals(arrayOfObjects[1].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0250c"));
+    }
+
+
 }
