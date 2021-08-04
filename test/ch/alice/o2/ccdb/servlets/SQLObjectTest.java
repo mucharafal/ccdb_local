@@ -30,6 +30,13 @@ public class SQLObjectTest {
 
     @AfterEach
     void tearDown() {
+        try (DBFunctions db = SQLObject.getDB()) {
+            db.query("delete from ccdb where pathid < 1000 and pathid > 10;\n" +
+                    "delete from ccdb_paths where path in ('a', 'b', 'x', 'y');\n" +
+                    "delete from ccdb_metadata where metadataKey in ('a', 'b', 'x', 'y');\n" +
+                    "delete from ccdb_contenttype where contentType in ('a', 'b', 'x', 'y');"
+            );
+        }
     }
 
     @Test
@@ -43,5 +50,12 @@ public class SQLObjectTest {
         assertNotNull(object2);
         assertNotNull(object3);
         assertNotNull(object4);
+    }
+
+    @Test
+    void getObjectsFromDatabaseByPath() {
+        SQLObject object1 = SQLObject.getObject(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0250c"));
+
+        assertNotNull(object1);
     }
 }
