@@ -65,7 +65,7 @@ public class SQLObjectTest {
 
     @Test
     void getMatchingObjectsFromDatabase() {
-        RequestParser parser = new RequestParserImpl("*");
+        RequestParser parser = new RequestParserImpl(".*");
         Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
 
         assertEquals(2, objects.size());
