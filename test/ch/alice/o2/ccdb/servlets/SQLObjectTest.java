@@ -64,7 +64,7 @@ public class SQLObjectTest {
     }
 
     @Test
-    void getMatchingObjectsFromDatabase() {
+    void getMatchingObjectsFromDatabaseUsingRegex() {
         RequestParser parser = new RequestParserImpl(".*");
         Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
 
@@ -73,6 +73,39 @@ public class SQLObjectTest {
         assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
         assertEquals(arrayOfObjects[1].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c"));
     }
+
+    @Test
+    void getMatchingObjectsFromDatabaseUsingPostgreSQLMatching() {
+        RequestParser parser = new RequestParserImpl("%");
+        Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
+
+        assertEquals(2, objects.size());
+        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
+        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
+        assertEquals(arrayOfObjects[1].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c"));
+    }
+
+    @Test
+    void getMatchingObjectsUsingPostgreSQLMatchingWhichPathStartsWithX() {
+        RequestParser parser = new RequestParserImpl("x%");
+        Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
+
+        assertEquals(1, objects.size());
+        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
+        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
+    }
+
+    @Test
+    void getMatchingObjectsUsingRegexWhichPathStartsWithX() {
+        RequestParser parser = new RequestParserImpl("x.*");
+        Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
+
+        assertEquals(1, objects.size());
+        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
+        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
+    }
+
+
 
 
 }
