@@ -112,7 +112,7 @@ public class SQLObjectTest {
         assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), arrayOfObjects[0].id);
     }
 
-    protected void saveInDatabase(SQLObject object, boolean isPathNew) {
+    protected void saveInDatabase(SQLObject object, int expectedNumberOfObjects, int expectedNumberOfPaths) {
         HttpServletRequest request = new HttpServletRequestImpl();
 
         object.save(request);
@@ -121,14 +121,14 @@ public class SQLObjectTest {
             db.query("select count(1) from ccdb;");
             db.moveNext();
             Integer numberOfObjects = db.geti(1);
-            assertEquals(5, numberOfObjects);
+            assertEquals(expectedNumberOfObjects, numberOfObjects);
         }
 
         try(DBFunctions db = SQLObject.getDB()) {
             db.query("select count(1) from ccdb_paths;");
             db.moveNext();
             Integer numberOfObjects = db.geti(1);
-            assertEquals(isPathNew ? 3 : 2, numberOfObjects);
+            assertEquals(expectedNumberOfPaths, numberOfObjects);
         }
 
         SQLObject objectReadFromDb = SQLObject.getObject(object.id);
@@ -138,13 +138,13 @@ public class SQLObjectTest {
     @Test
     void insertToDatabase() {
         SQLObject object = SQLObject.fromPath("path");
-        saveInDatabase(object, true);
+        saveInDatabase(object, 5, 3);
     }
 
     @Test
     void updateObjectInDatabase() {
         SQLObject object = SQLObject.getObject(object1Id);
-        saveInDatabase(object, false);
+        saveInDatabase(object, 4, 2);
     }
 
 

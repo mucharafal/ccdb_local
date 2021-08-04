@@ -4,8 +4,6 @@ import lazyj.DBFunctions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import javax.servlet.http.HttpServletRequest;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -27,6 +25,6 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
             db.query("update ccdb_path set pathid = 30 where path = 'x';");
         }
 
-        saveInDatabase(toInsert, false);
+        saveInDatabase(toInsert, 5, 2);
     }
 }
