@@ -7,12 +7,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SQLObjectTest {
+    private static final UUID object1Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c");
+    private static final UUID object3Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c");
 
     @BeforeEach
     void setUp() {
@@ -60,7 +61,19 @@ public class SQLObjectTest {
         RequestParser parser = new RequestParserImpl("x");
         SQLObject object1 = SQLObject.getMatchingObject(parser);
 
-        assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), object1.id);
+        assertEquals(object1Id, object1.id);
+    }
+
+    void checkObjects(Collection<SQLObject> objects) {
+        assertEquals(2, objects.size());
+        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
+        if(object1Id.equals(arrayOfObjects[0].id)) {
+            assertEquals(object1Id, arrayOfObjects[0].id);
+            assertEquals(object3Id, arrayOfObjects[1].id);
+        } else {
+            assertEquals(object3Id, arrayOfObjects[0].id);
+            assertEquals(object1Id, arrayOfObjects[1].id);
+        }
     }
 
     @Test
@@ -68,10 +81,7 @@ public class SQLObjectTest {
         RequestParser parser = new RequestParserImpl(".*");
         Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
 
-        assertEquals(2, objects.size());
-        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
-        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
-        assertEquals(arrayOfObjects[1].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c"));
+        checkObjects(objects);
     }
 
     @Test
@@ -79,10 +89,7 @@ public class SQLObjectTest {
         RequestParser parser = new RequestParserImpl("%");
         Collection<SQLObject> objects = SQLObject.getAllMatchingObjects(parser);
 
-        assertEquals(2, objects.size());
-        SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
-        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
-        assertEquals(arrayOfObjects[1].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c"));
+        checkObjects(objects);
     }
 
     @Test
@@ -92,7 +99,7 @@ public class SQLObjectTest {
 
         assertEquals(1, objects.size());
         SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
-        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
+        assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), arrayOfObjects[0].id);
     }
 
     @Test
@@ -102,7 +109,7 @@ public class SQLObjectTest {
 
         assertEquals(1, objects.size());
         SQLObject[] arrayOfObjects = objects.toArray(SQLObject[]::new);
-        assertEquals(arrayOfObjects[0].id, UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"));
+        assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), arrayOfObjects[0].id);
     }
 
 
