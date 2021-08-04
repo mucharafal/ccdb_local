@@ -155,12 +155,12 @@ public class SQLObjectCachelessImpl extends SQLObject {
      * @return all path IDs that match the request
      */
     private static List<String> getPathsWithPatternFallback(final RequestParser parser) {
-        final String exactPath = parser.wildcardMatching ? null : parser.path;
+        final Integer exactPathID = parser.wildcardMatching ? null : getPathID(parser.path, false);
 
         final List<String> paths;
 
-        if (exactPath != null)
-            paths = Collections.singletonList(exactPath);
+        if (exactPathID != null)
+            paths = Collections.singletonList(parser.path);
         else
             // wildcard expression ?
             if (parser.path != null && (parser.path.contains("*") || parser.path.contains("%"))) {

@@ -1004,7 +1004,8 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 	/**
 	 * @param parser - path could contain regular expression (regex) or PostgreSQL form (with %)
-	 *               Examples: for every path which start with x: x.* or x%
+	 *               Examples: for every path which start with x: x.* or x% // todo is it correct? Then expression like
+	 *               //todo x* work not like intended (for me ;)). Just you can't type '*' for all paths, but '.*' instead
 	 * @return the most recent matching objects, for every path which match regular expression
 	 */
 	public static Collection<SQLObject> getAllMatchingObjects(final RequestParser parser) {
