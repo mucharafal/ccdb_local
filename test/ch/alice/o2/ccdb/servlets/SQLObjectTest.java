@@ -113,9 +113,7 @@ public class SQLObjectTest {
     }
 
     protected void saveInDatabase(SQLObject object, int expectedNumberOfObjects, int expectedNumberOfPaths) {
-        HttpServletRequest request = new HttpServletRequestImpl();
-
-        object.save(request);
+        object.save(null);
 
         try(DBFunctions db = SQLObject.getDB()) {
             db.query("select count(1) from ccdb;");
