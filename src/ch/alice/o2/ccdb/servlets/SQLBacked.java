@@ -512,6 +512,7 @@ public class SQLBacked extends HttpServlet {
 
 					// cache-less utils
 					if (multiMasterVersion) {
+						System.err.println("Multi-master (cache-less) aware version");
 						HashMap<String, String> idNameInTable = new HashMap<String, String>();
 						idNameInTable.put("ccdb_paths", "pathid");
 						idNameInTable.put("ccdb_contenttype", "contentTypeId");
@@ -561,6 +562,8 @@ public class SQLBacked extends HttpServlet {
 								"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
 								"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;"
 						);
+					} else {
+						System.err.println("Non multi master version");
 					}
 				}
 				else
