@@ -135,6 +135,7 @@ public class SQLObjectTest {
     @Test
     void insertToDatabase() {
         SQLObject object = SQLObject.fromPath("path");
+        object.setContentType("x");
         saveInDatabase(object, 5, 3);
     }
 

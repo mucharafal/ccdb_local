@@ -20,6 +20,7 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
         assertNotNull(objectWithPathX);
 
         SQLObject toInsert = SQLObject.fromPath("x");
+        toInsert.setContentType("x");
 
         try(DBFunctions db = SQLObject.getDB()) {
             db.query("update ccdb_paths set pathid = 30 where path = 'x';");
