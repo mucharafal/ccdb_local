@@ -43,7 +43,9 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
         }
 
         objectWithPathA.setPath("x");
+        objectWithPathA.tainted = true;
         objectWithPathX.setPath("a");
+        objectWithPathX.tainted = true;     // todo this could be easily missed
         saveInDatabase(objectWithPathA, 4, 2);
         saveInDatabase(objectWithPathX, 4, 2);
 

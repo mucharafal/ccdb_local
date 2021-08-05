@@ -141,7 +141,10 @@ public class SQLObjectTest {
     @Test
     void updateObjectInDatabase() {
         SQLObject object = SQLObject.getObject(object1Id);
+        object.setPath("a");
+        object.tainted = true;
         saveInDatabase(object, 4, 2);
+        assertEquals("a", SQLObject.getObject(object.id).getPath());
     }
 
     public static boolean areSQLObjectsEqual(SQLObject first, SQLObject second) {
