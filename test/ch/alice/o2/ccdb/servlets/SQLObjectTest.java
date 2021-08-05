@@ -151,7 +151,7 @@ public class SQLObjectTest {
         return first.equals(second) &&
                 first.id.equals(second.id) &&
                 first.getPath().equals(second.getPath()) &&
-                first.getContentType().equals(second.getContentType()) &&
+                (first.getContentType() == second.getContentType() || first.getContentType().equals(second.getContentType())) &&
                 first.getMetadataKeyValue().equals(second.getMetadataKeyValue()) &&
                 first.getLastModified() == second.getLastModified() &&
                 first.createTime == second.createTime &&
