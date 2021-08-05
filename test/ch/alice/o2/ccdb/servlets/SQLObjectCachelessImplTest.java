@@ -22,7 +22,7 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
         SQLObject toInsert = SQLObject.fromPath("x");
 
         try(DBFunctions db = SQLObject.getDB()) {
-            db.query("update ccdb_path set pathid = 30 where path = 'x';");
+            db.query("update ccdb_paths set pathid = 30 where path = 'x';");
         }
 
         saveInDatabase(toInsert, 5, 2);
@@ -37,9 +37,9 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
         assertNotNull(objectWithPathX);
 
         try(DBFunctions db = SQLObject.getDB()) {
-            db.query("update ccdb_path set pathid = 30 where path = 'x';");
-            db.query("update ccdb_path set pathid = 100 where path = 'a';");
-            db.query("update ccdb_path set pathid = 101 where path = 'x';");
+            db.query("update ccdb_paths set pathid = 30 where path = 'x';");
+            db.query("update ccdb_paths set pathid = 100 where path = 'a';");
+            db.query("update ccdb_paths set pathid = 101 where path = 'x';");
         }
 
         objectWithPathA.setPath("x");
