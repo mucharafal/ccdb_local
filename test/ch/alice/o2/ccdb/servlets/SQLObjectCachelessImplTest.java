@@ -4,6 +4,8 @@ import lazyj.DBFunctions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -21,7 +23,7 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
 
         SQLObject toInsert = SQLObject.fromPath("x");
         toInsert.setContentType("x");
-        toInsert.md5 = "md5";
+        toInsert.md5 = UUID.randomUUID().toString();
 
         try(DBFunctions db = SQLObject.getDB()) {
             db.query("update ccdb_paths set pathid = 30 where path = 'x';");
