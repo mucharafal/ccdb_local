@@ -139,12 +139,12 @@ public class SQLObjectTest {
     }
 
     @Test
-    void updateObjectInDatabase() {
+    void updateContentType() {  // todo It is possible to update only a few fields in SQLObjects, can be confusing
         SQLObject object = SQLObject.getObject(object1Id);
-        object.setPath("a");
+        object.setContentType("a");
         object.tainted = true;
         saveInDatabase(object, 4, 2);
-        assertEquals("a", SQLObject.getObject(object.id).getPath());
+        assertEquals("a", SQLObject.getObject(object.id).getContentType());
     }
 
     public static boolean areSQLObjectsEqual(SQLObject first, SQLObject second) {

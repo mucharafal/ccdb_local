@@ -29,7 +29,7 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
     }
 
     @Test
-    void updateObjectAfterUpdatePath() {
+    void getObjectsAfterUpdatePath() {
         SQLObject objectWithPathA = SQLObject.getObject(object3Id);
         SQLObject objectWithPathX = SQLObject.getObject(object1Id);
 
@@ -42,14 +42,7 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
             db.query("update ccdb_paths set pathid = 101 where path = 'x';");
         }
 
-        objectWithPathA.setPath("x");
-        objectWithPathA.tainted = true;
-        objectWithPathX.setPath("a");
-        objectWithPathX.tainted = true;     // todo this could be easily missed
-        saveInDatabase(objectWithPathA, 4, 2);
-        saveInDatabase(objectWithPathX, 4, 2);
-
-        assertEquals("x", SQLObject.getObject(objectWithPathA.id).getPath());
-        assertEquals("a", SQLObject.getObject(objectWithPathX.id).getPath());
+        assertEquals("a", SQLObject.getObject(objectWithPathA.id).getPath());
+        assertEquals("x", SQLObject.getObject(objectWithPathX.id).getPath());
     }
 }
