@@ -155,7 +155,6 @@ public class SQLObjectTest {
                 first.getPath().equals(second.getPath()) &&
                 (first.getContentType() == second.getContentType() || first.getContentType().equals(second.getContentType())) &&
                 first.getMetadataKeyValue().equals(second.getMetadataKeyValue()) &&
-                first.getLastModified() == second.getLastModified() &&
                 first.createTime == second.createTime &&
                 first.md5.equals(second.md5);
     }
