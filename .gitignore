@@ -3,3 +3,6 @@ package/apache*
 build
 *.class
 eclipse-style.xml
+.idea/*
+*.iml
+out/*
