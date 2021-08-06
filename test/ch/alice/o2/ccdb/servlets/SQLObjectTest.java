@@ -129,7 +129,7 @@ public class SQLObjectTest {
         }
 
         SQLObject objectReadFromDb = SQLObject.getObject(object.id);
-        assertTrue(areSQLObjectsEqual(object, objectReadFromDb), object.toString() + " != " + objectReadFromDb.toString());
+        assertAreSQLObjectsEqual(object, objectReadFromDb);
     }
 
     @Test
@@ -149,14 +149,15 @@ public class SQLObjectTest {
         assertEquals("a", SQLObject.getObject(object.id).getContentType());
     }
 
-    public static boolean areSQLObjectsEqual(SQLObject first, SQLObject second) {
-        return first.equals(second) &&
-                first.id.equals(second.id) &&
-                first.getPath().equals(second.getPath()) &&
-                first.getContentType().equals(second.getContentType()) &&
-                first.getMetadataKeyValue().equals(second.getMetadataKeyValue()) &&
-                first.createTime == second.createTime &&
-                first.md5.equals(second.md5);
+    public static boolean assertAreSQLObjectsEqual(SQLObject first, SQLObject second) {
+        assertEquals(first, second);
+        assertEquals(first.id, second.id);
+        assertEquals(first.getPath(), second.getPath());
+        assertEquals(first.getContentType(), second.getContentType());
+        assertEquals(first.getMetadataKeyValue(), second.getMetadataKeyValue());
+        assertEquals(first.createTime, second.createTime);
+        assertEquals(first.md5, second.md5);
+        return true;
     }
 
 
