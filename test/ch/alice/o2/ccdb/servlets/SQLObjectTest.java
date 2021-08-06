@@ -129,7 +129,7 @@ public class SQLObjectTest {
         }
 
         SQLObject objectReadFromDb = SQLObject.getObject(object.id);
-        assertTrue(areSQLObjectsEqual(object, objectReadFromDb));
+        assertTrue(areSQLObjectsEqual(object, objectReadFromDb), object.toString() + " != " + objectReadFromDb.toString());
     }
 
     @Test
@@ -153,7 +153,7 @@ public class SQLObjectTest {
         return first.equals(second) &&
                 first.id.equals(second.id) &&
                 first.getPath().equals(second.getPath()) &&
-                (first.getContentType() == second.getContentType() || first.getContentType().equals(second.getContentType())) &&
+                first.getContentType().equals(second.getContentType()) &&
                 first.getMetadataKeyValue().equals(second.getMetadataKeyValue()) &&
                 first.createTime == second.createTime &&
                 first.md5.equals(second.md5);
