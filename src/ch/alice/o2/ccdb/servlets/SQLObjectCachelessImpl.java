@@ -24,16 +24,8 @@ public class SQLObjectCachelessImpl extends SQLObject {
      * @return the pathId of this object
      */
     @Override
-    public Integer getPathId() {
+    public Integer getPathId(boolean getFromDatabase) {
         return getPathID(path, true);
-    }
-
-    /**
-     * @param pathId the pathId which should be set
-     */
-    @Override
-    public void setPathId(Integer pathId) { //todo - test it in Cacheless impl
-        this.path = getPath(pathId);
     }
 
     /**

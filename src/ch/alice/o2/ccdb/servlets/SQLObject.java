@@ -79,13 +79,10 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	public UUID id;
 
 	/**
+	 * @param getFromDatabase whether to use local value or get id using path
 	 * @return the pathId of this object
 	 */
-	public abstract Integer getPathId();
-	/**
-	 * @param pathId the pathId which should be set
-	 */
-	public abstract void setPathId(Integer pathId);
+	public abstract Integer getPathId(boolean getFromDatabase);
 
 	/**
 	 * @return the full path of this object
@@ -297,8 +294,8 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 					setProperty(existing ? "UpdatedBy" : "UploadedBy", account.getDefaultUser());
 			}
 
-			if (this.getPathId() == null)
-				 this.setPathId(getPathID(getPath(), true));
+			if (this.getPathId(true) == null)
+				 System.err.println("Object has not set pathId nor can obtain it from db");
 
 			try (DBFunctions db = getDB()) {
 				final StringBuilder sb = new StringBuilder();
@@ -343,8 +340,8 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 					for (int attempt = 0; attempt < 2; attempt++) {
 						if (attempt > 0) {
 							// if another instance has cleaned up this path
-							removePathID(getPathId());
-							setPathId(getPathID(getPath(), true));
+							removePathID(getPathId(false));
+							getPathId(true);
 						}
 						
 						if (insertObjectIntoDB(db, replicaArray)) {

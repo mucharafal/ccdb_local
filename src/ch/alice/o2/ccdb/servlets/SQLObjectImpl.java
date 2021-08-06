@@ -29,16 +29,11 @@ public class SQLObjectImpl extends SQLObject {
      * @return the pathId of this object
      */
     @Override
-    public Integer getPathId() {
+    public Integer getPathId(boolean getFromDatabase) {
+        if(getFromDatabase) {
+            pathId = getPathID(getPath(), true);
+        }
         return pathId;
-    }
-
-    /**
-     * @param pathId the pathId which should be set
-     */
-    @Override
-    public void setPathId(Integer pathId) {
-        this.pathId = pathId;
     }
 
     /**
@@ -46,7 +41,10 @@ public class SQLObjectImpl extends SQLObject {
      */
     @Override
     public String getPath() {
-        return path == null ? getPath(pathId) : path;
+        if(path == null && pathId != null) {
+            this.path = getPath(pathId);
+        }
+        return path;
     }
 
     /**
