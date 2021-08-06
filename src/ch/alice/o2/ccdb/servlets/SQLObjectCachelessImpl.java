@@ -110,7 +110,7 @@ public class SQLObjectCachelessImpl extends SQLObject {
         return db.query("UPDATE ccdb SET "
 							+ "validity=tsrange(to_timestamp(?) AT TIME ZONE 'UTC', to_timestamp(?) AT TIME ZONE 'UTC'),"
 							+ "replicas=?::int[], " + "contenttype=ccdb_contenttype_latest(?), "
-							+ "metadata=ccdb_metadata_latest(?), " + "lastmodified=?" + "WHERE id=?;",
+							+ "metadata=ccdb_metadata_latest_keyid_value(?), " + "lastmodified=?" + "WHERE id=?;",
 							false, validFrom / 1000., validUntil / 1000., replicaArray,
 							getContentType(), getMetadataKeyValue(), lastModified, id);
     }
@@ -122,7 +122,7 @@ public class SQLObjectCachelessImpl extends SQLObject {
                         + "lastmodified) VALUES (?, ccdb_paths_latest(?), \n"
                         + "tsrange(to_timestamp(?) AT TIME ZONE 'UTC', to_timestamp(?) AT TIME ZONE 'UTC'), \n"
                         + "?, ?::int[], ?, ?::uuid, ?, ?, ccdb_contenttype_latest(?), \n"
-                        + "	?::inet, ccdb_metadata_latest(?), ? );", false, id, getPath(), validFrom / 1000.,
+                        + "	?::inet, ccdb_metadata_latest_keyid_value(?), ? );", false, id, getPath(), validFrom / 1000.,
                 validUntil / 1000., createTime, replicaArray,
                 size, md5, initialValidity, fileName, getContentType(),
                 uploadedFrom, getMetadataKeyValue(), lastModified);

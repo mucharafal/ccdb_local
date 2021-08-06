@@ -530,8 +530,8 @@ public class SQLBacked extends HttpServlet {
 									+ "    return (select " + idName + " from " + tableName + " where " + valueName + " = value_to_insert);\n"
 									+ "end $$ language plpgsql;");
 						}
-						// todo rename function
-						db.query("create or replace function ccdb_metadata_latest (values_to_insert hstore) returns hstore as $$\n" +
+
+						db.query("create or replace function ccdb_metadata_latest_keyid_value (values_to_insert hstore) returns hstore as $$\n" +
 								"declare \n" +
 								"	actual_ids_to_insert hstore := ''::hstore;\n" +
 								"	value text;\n" +
