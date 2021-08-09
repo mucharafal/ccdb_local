@@ -57,16 +57,16 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
         assertNotNull(objectWithContentTypeA);
 
         try(DBFunctions db = SQLObject.getDB()) {
-            db.query("update ccdb_contenttype set contenttypeid = 30 where path = 'x';");
-            db.query("update ccdb_contenttype set contenttypeid = 100 where path = 'a';");
-            db.query("update ccdb_contenttype set contenttypeid = 101 where path = 'x';");
+            db.query("update ccdb_contenttype set contenttypeid = 30 where contenttype = 'x';");
+            db.query("update ccdb_contenttype set contenttypeid = 100 where contenttype = 'a';");
+            db.query("update ccdb_contenttype set contenttypeid = 101 where contenttype = 'x';");
         }
 
         objectWithContentTypeA.setContentType("x");
         saveInDatabase(objectWithContentTypeA, 4, 2);
 
         try(DBFunctions db = SQLObject.getDB()) {
-            db.query("update ccdb_contenttype set contenttypeid = 30 where path = 'x';");
+            db.query("update ccdb_contenttype set contenttypeid = 30 where contenttype = 'x';");
         }
 
         assertEquals("x", SQLObject.getObject(objectWithContentTypeA.id).getContentType());
