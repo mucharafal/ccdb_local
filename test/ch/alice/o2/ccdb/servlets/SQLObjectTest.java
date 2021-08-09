@@ -10,9 +10,13 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * @author rmucha
+ * @since 2021-08-09
+ */
 public class SQLObjectTest {
-    protected static final UUID object1Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c");
-    protected static final UUID object3Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c");
+    static final UUID object1Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c");
+    static final UUID object3Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c");
 
     @BeforeEach
     void setUp() {
@@ -111,20 +115,20 @@ public class SQLObjectTest {
         assertEquals(UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c"), arrayOfObjects[0].id);
     }
 
-    protected void saveInDatabase(SQLObject object, int expectedNumberOfObjects, int expectedNumberOfPaths) {
+    void saveInDatabase(SQLObject object, int expectedNumberOfObjects, int expectedNumberOfPaths) {
         object.save(null);
 
         try(DBFunctions db = SQLObject.getDB()) {
             db.query("select count(1) from ccdb;");
             db.moveNext();
-            Integer numberOfObjects = db.geti(1);
+            Integer numberOfObjects = Integer.valueOf(db.geti(1));
             assertEquals(expectedNumberOfObjects, numberOfObjects);
         }
 
         try(DBFunctions db = SQLObject.getDB()) {
             db.query("select count(1) from ccdb_paths;");
             db.moveNext();
-            Integer numberOfObjects = db.geti(1);
+            Integer numberOfObjects = Integer.valueOf(db.geti(1));
             assertEquals(expectedNumberOfPaths, numberOfObjects);
         }
 
@@ -149,6 +153,11 @@ public class SQLObjectTest {
         assertEquals("a", SQLObject.getObject(object.id).getContentType());
     }
 
+    /**
+     * @param first
+     * @param second
+     * @return `true` if everything works as expected
+     */
     public static boolean assertAreSQLObjectsEqual(SQLObject first, SQLObject second) {
         assertEquals(first, second);
         assertEquals(first.id, second.id);

@@ -53,13 +53,22 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	private static ExtProperties config = new ExtProperties(Options.getOption("config.dir", "."),
 			Options.getOption("config.file", "config"));
 
+	/**
+	 * Shared monitoring of SQLObject* implementations
+	 */
 	protected static final Monitor monitor = MonitorFactory.getMonitor(SQLObject.class.getCanonicalName());
 
+	/**
+	 * Shared logging of SQLObject* implementations
+	 */
 	protected static final Logger logger = Logger.getLogger(SQLObject.class.getCanonicalName());
 
-	public static boolean multiMasterVersion = Options.getOption("multimaster", "false").equals("true");
+	/**
+	 * Multi-master aware implementation, that disables caching and ensures consistency at all SQL operations (Online instance)
+	 */
+	public static boolean multiMasterVersion = Utils.stringToBool(Options.getOption("multimaster", "false"), false);
 
-	public static String selectAllFromCCDB() {
+	static String selectAllFromCCDB() {
 		return multiMasterVersion ? SQLObjectCachelessImpl.selectAllFromCCDB : SQLObjectImpl.selectAllFromCCDB;
 	}
 
@@ -88,6 +97,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	 * @return the full path of this object
 	 */
 	public abstract String getPath();
+
 	/**
 	 * @param path the path which should be set
 	 */
@@ -166,11 +176,18 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	 * Content type
 	 */
 	private String contentType = null;
+
+	/**
+	 * @return the content type string
+	 */
 	public String getContentType() {
 		return contentType;
 	}
 
-	public void setContentType(String contentType) {
+	/**
+	 * @param contentType
+	 */
+	public void setContentType(final String contentType) {
 		this.contentType = contentType;
 	}
 
@@ -184,8 +201,8 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	 */
 	public long lastModified = System.currentTimeMillis();
 
-	protected transient boolean existing = false;
-	protected transient boolean tainted = false;
+	transient boolean existing = false;
+	transient boolean tainted = false;
 
 	/**
 	 * Create an empty object
@@ -201,6 +218,10 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 		this.setPath(path);
 	}
 
+	/**
+	 * @param path
+	 * @return the SQLObject implementation for the given path
+	 */
 	public static SQLObject fromPath(final String path) {
 		return multiMasterVersion ? new SQLObjectCachelessImpl(path) : new SQLObjectImpl(path);
 	}
@@ -240,11 +261,17 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 		this.setPath(path);
 	}
 
+	/**
+	 * @param request
+	 * @param path
+	 * @param uuid
+	 * @return the SQLObject corresponding to the request
+	 */
 	public static SQLObject fromRequest(final HttpServletRequest request, final String path, final UUID uuid) {
 		return multiMasterVersion ? new SQLObjectCachelessImpl(request, path, uuid) : new SQLObjectImpl(request, path, uuid);
 	}
 
-	protected SQLObject(final DBFunctions db) {
+	SQLObject(final DBFunctions db) {
 		id = (UUID) db.getObject("id");
 
 		createTime = db.getl("createtime");
@@ -263,20 +290,21 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				final Integer[] r = (Integer[]) replicasObject.getArray();
 
 				Collections.addAll(replicas, r);
-			} catch (@SuppressWarnings("unused") final SQLException e) {
+			}
+			catch (@SuppressWarnings("unused") final SQLException e) {
 				// ignore
 			}
 
 		existing = true;
 	}
 
-	public static SQLObject fromDb(final DBFunctions db) {
+	static SQLObject fromDb(final DBFunctions db) {
 		return multiMasterVersion ? new SQLObjectCachelessImpl(db) : new SQLObjectImpl(db);
 	}
 
-	protected abstract boolean updateObjectInDB(DBFunctions db, String replicaArray);
+	abstract boolean updateObjectInDB(DBFunctions db, String replicaArray);
 
-	protected abstract boolean insertObjectIntoDB(DBFunctions db, String replicaArray);
+	abstract boolean insertObjectIntoDB(DBFunctions db, String replicaArray);
 
 	/**
 	 * @param request request details, to decorate the metadata with
@@ -295,7 +323,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			}
 
 			if (this.getPathId(true) == null)
-				 System.err.println("Object has not set pathId nor can obtain it from db");
+				System.err.println("Object has not set pathId nor can obtain it from db");
 
 			try (DBFunctions db = getDB()) {
 				final StringBuilder sb = new StringBuilder();
@@ -319,8 +347,6 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 				lastModified = System.currentTimeMillis();
 
-				Map<String, String> metadataWithPK = getMetadataKeyValue();
-
 				getContentTypeID(getContentType(), true);
 
 				if (existing) {
@@ -343,7 +369,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 							removePathID(getPathId(false));
 							getPathId(true);
 						}
-						
+
 						if (insertObjectIntoDB(db, replicaArray)) {
 							existing = true;
 							tainted = false;
@@ -638,7 +664,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	 *         key is not defined for this object
 	 */
 	public String getProperty(final String key, final String defaultValue) {
-		String value = getMetadataKeyValue().get(key);
+		final String value = getMetadataKeyValue().get(key);
 
 		return value == null ? defaultValue : value;
 	}
@@ -691,7 +717,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 	private static final Cache pathsCache = new Cache(!multiMasterVersion);
 
-	protected static synchronized Integer getPathID(final String path, final boolean createIfNotExists) {
+	static synchronized Integer getPathID(final String path, final boolean createIfNotExists) {
 		Integer value = pathsCache.getIdFromCache(path);
 
 		if (value != null)
@@ -701,7 +727,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			db.query("SELECT pathid FROM ccdb_paths WHERE path=?;", false, path);
 
 			if (db.moveNext()) {
-				value = db.geti(1);
+				value = Integer.valueOf(db.geti(1));
 				pathsCache.putInCache(value, path);
 				return value;
 			}
@@ -709,7 +735,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			if (createIfNotExists) {
 				final Integer hashId = absHashCode(path);
 
-				if (hashId > 0
+				if (hashId.intValue() > 0
 						&& db.query("INSERT INTO ccdb_paths (pathId, path) VALUES (?, ?);", false, hashId, path)) {
 					// could create the hash-based path ID, all good
 					pathsCache.putInCache(hashId, path);
@@ -724,7 +750,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				db.query("SELECT pathid FROM ccdb_paths WHERE path=?;", false, path);
 
 				if (db.moveNext()) {
-					value = db.geti(1);
+					value = Integer.valueOf(db.geti(1));
 					pathsCache.putInCache(hashId, path);
 					return value;
 				}
@@ -742,17 +768,17 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 		return pathsCache.removeById(pathID);
 	}
 
-	public static void selectFromCcdbPaths(final String columnName, final String pathPattern, DBFunctions db) {
+	static void selectFromCcdbPaths(final String columnName, final String pathPattern, final DBFunctions db) {
 		if (pathPattern.contains("%"))
 			db.query("SELECT " + columnName + " FROM ccdb_paths WHERE path LIKE ? ORDER BY path;", false, pathPattern);
 		else
 			db.query("SELECT " + columnName + " FROM ccdb_paths WHERE path ~ ? ORDER BY path;", false, "^" + pathPattern);
 	}
 
-	protected static synchronized String getPath(final Integer pathId) {	// must be always correct
+	static synchronized String getPath(final Integer pathId) { // must be always correct
 		String value = pathsCache.getValueFromCache(pathId);
 
-		if(value != null) {
+		if (value != null) {
 			return value;
 		}
 
@@ -771,7 +797,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 	private static final Cache metadataCache = new Cache(!multiMasterVersion);
 
-	protected static synchronized Integer getMetadataID(final String metadataKey, final boolean createIfNotExists) {
+	static synchronized Integer getMetadataID(final String metadataKey, final boolean createIfNotExists) {
 		if (metadataKey == null || metadataKey.isBlank())
 			return null;
 
@@ -784,7 +810,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			db.query("SELECT metadataId FROM ccdb_metadata WHERE metadataKey=?;", false, metadataKey);
 
 			if (db.moveNext()) {
-				value = db.geti(1);
+				value = Integer.valueOf(db.geti(1));
 				metadataCache.putInCache(value, metadataKey);
 				return value;
 			}
@@ -792,7 +818,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			if (createIfNotExists) {
 				final Integer hashId = absHashCode(metadataKey);
 
-				if (hashId > 0
+				if (hashId.intValue() > 0
 						&& db.query("INSERT INTO ccdb_metadata(metadataId, metadataKey) VALUES (?, ?);", false, hashId,
 								metadataKey)) {
 					metadataCache.putInCache(hashId, metadataKey);
@@ -804,7 +830,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				db.query("SELECT metadataId FROM ccdb_metadata WHERE metadataKey=?;", false, metadataKey);
 
 				if (db.moveNext()) {
-					value = db.geti(1);
+					value = Integer.valueOf(db.geti(1));
 					metadataCache.putInCache(value, metadataKey);
 					return value;
 				}
@@ -842,7 +868,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 	private static final Cache contentTypeCache = new Cache(!multiMasterVersion);
 
-	protected static synchronized Integer getContentTypeID(final String contentType, final boolean createIfNotExists) {
+	static synchronized Integer getContentTypeID(final String contentType, final boolean createIfNotExists) {
 		if (contentType == null || contentType.isBlank())
 			return null;
 
@@ -855,7 +881,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			db.query("SELECT contentTypeId FROM ccdb_contenttype WHERE contentType=?", false, contentType);
 
 			if (db.moveNext()) {
-				value = db.geti(1);
+				value = Integer.valueOf(db.geti(1));
 				contentTypeCache.putInCache(value, contentType);
 				return value;
 			}
@@ -863,7 +889,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 			if (createIfNotExists) {
 				final Integer hashId = absHashCode(contentType);
 
-				if (hashId > 0
+				if (hashId.intValue() > 0
 						&& db.query("INSERT INTO ccdb_contenttype (contentTypeId, contentType) VALUES (?, ?);", false,
 								hashId, contentType)) {
 					contentTypeCache.putInCache(hashId, contentType);
@@ -875,7 +901,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				db.query("SELECT contentTypeId FROM ccdb_contenttype WHERE contentType=?;", false, contentType);
 
 				if (db.moveNext()) {
-					value = db.geti(1);
+					value = Integer.valueOf(db.geti(1));
 					contentTypeCache.putInCache(value, contentType);
 					return value;
 				}
@@ -885,7 +911,7 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 		return null;
 	}
 
-	protected static synchronized String getContentType(final Integer contentTypeId) {
+	static synchronized String getContentType(final Integer contentTypeId) {
 		String value = contentTypeCache.getValueFromCache(contentTypeId);
 
 		if (value != null)
@@ -937,20 +963,18 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	 */
 	public static SQLObject getMatchingObject(final RequestParser parser) {
 		try (Timing t = new Timing(monitor, "getMatchingObject_ms")) {
-			if(multiMasterVersion) {
+			if (multiMasterVersion) {
 				return SQLObjectCachelessImpl.getMatchingObject(parser);
-			} else {
-				return SQLObjectImpl.getMatchingObject(parser);
 			}
+			return SQLObjectImpl.getMatchingObject(parser);
 		}
 	}
 
-	protected static boolean parseOptionsToQuery(
+	static boolean parseOptionsToQuery(
 			final RequestParser parser,
-			StringBuilder query,
-			List<Object> arguments,
-			boolean stopWhenNoSuchMetadata
-	) {
+			final StringBuilder query,
+			final List<Object> arguments,
+			final boolean stopWhenNoSuchMetadata) {
 		if (parser.uuidConstraint != null) {
 			query.append(" AND id=?");
 
@@ -960,19 +984,19 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 		if (parser.startTimeSet) {
 			query.append(" AND to_timestamp(?) AT TIME ZONE 'UTC' <@ validity");
 
-			arguments.add(parser.startTime / 1000.);
+			arguments.add(Double.valueOf(parser.startTime / 1000.));
 		}
 
 		if (parser.notAfter > 0) {
 			query.append(" AND createTime<=?");
 
-			arguments.add(parser.notAfter);
+			arguments.add(Long.valueOf(parser.notAfter));
 		}
 
 		if (parser.notBefore > 0) {
 			query.append(" AND createTime>=?");
 
-			arguments.add(parser.notBefore);
+			arguments.add(Long.valueOf(parser.notBefore));
 		}
 
 		if (parser.flagConstraints.size() > 0)
@@ -981,11 +1005,11 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 
 				final Integer metadataId = getMetadataID(key, false);
 
-				if (metadataId == null)
+				if (metadataId == null) {
 					if (stopWhenNoSuchMetadata)
 						return false;
-					else
-						continue;
+					continue;
+				}
 
 				final String value = constraint.getValue();
 
@@ -997,20 +1021,17 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 		return true;
 	}
 
-
-
 	/**
 	 * @param parser - path could contain regular expression (regex) or PostgreSQL form (with %)
-	 *               Examples: for every path which start with x: x.* or x% // todo is it correct? Then expression like
-	 *               //todo x* work not like intended (for me ;)). Just you can't type '*' for all paths, but '.*' instead
+	 *            Examples: for every path which start with x: x.* or x% // todo is it correct? Then expression like
+	 *            //todo x* work not like intended (for me ;)). Just you can't type '*' for all paths, but '.*' instead
 	 * @return the most recent matching objects, for every path which match regular expression
 	 */
 	public static Collection<SQLObject> getAllMatchingObjects(final RequestParser parser) {
-		if(multiMasterVersion) {
+		if (multiMasterVersion) {
 			return SQLObjectCachelessImpl.getAllMatchingObjects(parser);
-		} else {
-			return SQLObjectImpl.getAllMatchingObjects(parser);
 		}
+		return SQLObjectImpl.getAllMatchingObjects(parser);
 	}
 
 	@Override
@@ -1029,11 +1050,11 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				.append(", content type: ").append(getContentType()).append('\n');
 		sb.append("Uploaded from: ").append(uploadedFrom).append('\n');
 
-		Map<String, String> metadata = getMetadataKeyValue();
-		if (metadata != null && metadata.size() > 0) {
+		final Map<String, String> metadataValues = getMetadataKeyValue();
+		if (metadataValues != null && metadataValues.size() > 0) {
 			sb.append("Metadata:\n");
 
-			for (final Map.Entry<String, String> entry : metadata.entrySet())
+			for (final Map.Entry<String, String> entry : metadataValues.entrySet())
 				sb.append("  ").append(entry.getKey()).append(" = ").append(entry.getValue())
 						.append('\n');
 		}

@@ -58,6 +58,9 @@ public class SQLBacked extends HttpServlet {
 	 */
 	public static final String basePath = Options.getOption("file.repository.location", System.getProperty("user.home") + System.getProperty("file.separator") + "QC");
 
+	/**
+	 * Set to `true` on the Online instance, that should not cache any IDs but always use the database values to ensure consistency
+	 */
 	public static final boolean multiMasterVersion = Options.getOption("multimaster", "false").equals("true");
 
 	private static final boolean localCopyFirst = lazyj.Utils.stringToBool(Options.getOption("local.copy.first", null), false);
@@ -513,18 +516,18 @@ public class SQLBacked extends HttpServlet {
 					// cache-less utils
 					if (multiMasterVersion) {
 						System.err.println("Multi-master (cache-less) aware version");
-						HashMap<String, String> idNameInTable = new HashMap<String, String>();
+						final HashMap<String, String> idNameInTable = new HashMap<>();
 						idNameInTable.put("ccdb_paths", "pathid");
 						idNameInTable.put("ccdb_contenttype", "contentTypeId");
 
-						HashMap<String, String> valueNameInTable = new HashMap<String, String>();
+						final HashMap<String, String> valueNameInTable = new HashMap<>();
 						valueNameInTable.put("ccdb_paths", "path");
 						valueNameInTable.put("ccdb_contenttype", "contentType");
-						
-						String[] tables = { "ccdb_paths", "ccdb_contenttype" };
-						for (String tableName : tables) {
-							String idName = idNameInTable.get(tableName);
-							String valueName = valueNameInTable.get(tableName);
+
+						final String[] tables = { "ccdb_paths", "ccdb_contenttype" };
+						for (final String tableName : tables) {
+							final String idName = idNameInTable.get(tableName);
+							final String valueName = valueNameInTable.get(tableName);
 							db.query("create or replace function " + tableName + "_latest (value_to_insert text) returns bigint as $$\n"
 									+ "begin\n"
 									+ "    return (select " + idName + " from " + tableName + " where " + valueName + " = value_to_insert);\n"
@@ -560,9 +563,9 @@ public class SQLBacked extends HttpServlet {
 								"        ccdb_metadata_latest_key_value(ccdb.metadata) as metadata_key_value\n" +
 								"    from ccdb  \n" +
 								"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
-								"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;"
-						);
-					} else {
+								"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;");
+					}
+					else {
 						System.err.println("Non multi master version");
 					}
 				}

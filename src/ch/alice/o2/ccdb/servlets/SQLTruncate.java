@@ -53,14 +53,13 @@ public class SQLTruncate extends HttpServlet {
 				try (DBFunctions db = SQLObject.getDB()) {
 					SQLObject.selectFromCcdbPaths("pathid", parser.path, db);
 
-					List<Integer> pathIds = new LinkedList<>();
+					final List<Integer> pathIds = new LinkedList<>();
 
 					while (db.moveNext())
-						pathIds.add(db.geti(1));
+						pathIds.add(Integer.valueOf(db.geti(1)));
 
-					for(Integer pathID: pathIds) {
-						while(db.moveNext())
-							db.query("SELECT 1 FROM ccdb WHERE pathid=? LIMIT 1;", false, pathID);
+					for (final Integer pathID : pathIds) {
+						db.query("SELECT 1 FROM ccdb WHERE pathid=? LIMIT 1;", false, pathID);
 
 						if (!db.moveNext())
 							if (db.query("DELETE FROM ccdb_paths WHERE pathid=?;", false, pathID))

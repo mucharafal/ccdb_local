@@ -133,7 +133,7 @@ public class RequestParser {
 		ok = true;
 
 		try {
-			String browseLimitHeader = request.getHeader("Browse-Limit");
+			final String browseLimitHeader = request.getHeader("Browse-Limit");
 
 			if (browseLimitHeader != null && !browseLimitHeader.isBlank())
 				browseLimit = Integer.parseInt(browseLimitHeader);
