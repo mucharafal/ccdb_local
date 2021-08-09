@@ -63,6 +63,7 @@ class SQLObjectCachelessImplTest extends SQLObjectTest {
         }
 
         objectWithContentTypeA.setContentType("x");
+        objectWithContentTypeA.tainted = true;
         saveInDatabase(objectWithContentTypeA, 4, 2);
 
         try(DBFunctions db = SQLObject.getDB()) {
