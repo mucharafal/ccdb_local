@@ -62,7 +62,7 @@ public class UDPReceiver extends Thread {
 	/**
 	 * For how long superseded objects should be kept around, in case delayed processing needs them
 	 */
-	private static final long TTL_FOR_SUPERSEDED_OBJECTS = 1000 * 60 * 2;
+	private static final long TTL_FOR_SUPERSEDED_OBJECTS = 1000 * Options.getIntOption("udpreceiver.superseded_objects_ttl", 60);
 
 	private String multicastIPaddress = null;
 
@@ -70,7 +70,7 @@ public class UDPReceiver extends Thread {
 
 	private int unicastPortNumber = 0;
 
-	private static String recoveryBaseURL = Options.getOption("udp_receiver.recovery_url", "http://alice-ccdb.cern.ch:8080/");
+	private static String recoveryBaseURL = Options.getOption("udp_receiver.recovery_url", "http://o2-ccdb.internal/");
 
 	/**
 	 * Blob-uri complete
@@ -683,14 +683,15 @@ public class UDPReceiver extends Thread {
 											objectIterator.remove();
 										}
 									}
-									else if (System.currentTimeMillis() - b.getLastTouched() > 1000 * 10) {
-										if (logger.isLoggable(Level.INFO))
-											logger.log(Level.INFO, "Removing incomplete and not yet recovered object " + b.getKey() + ": " + b.getUuid());
+									else
+										if (System.currentTimeMillis() - b.getLastTouched() > 1000 * 10) {
+											if (logger.isLoggable(Level.INFO))
+												logger.log(Level.INFO, "Removing incomplete and not yet recovered object " + b.getKey() + ": " + b.getUuid());
 
-										monitor.incrementCounter("evicted_incomplete_objects");
+											monitor.incrementCounter("evicted_incomplete_objects");
 
-										objectIterator.remove();
-									}
+											objectIterator.remove();
+										}
 								}
 								catch (@SuppressWarnings("unused") final NoSuchAlgorithmException e) {
 									// ignore
@@ -715,14 +716,15 @@ public class UDPReceiver extends Thread {
 									// ignore
 								}
 
-								if (currentTime - b.getStartTime() > TTL_FOR_SUPERSEDED_OBJECTS) {
-									// more than 5 minutes old and superseded by a newer one, can be removed
+								if (currentTime - b.getOrSetSupersededTimestamp(currentTime) > TTL_FOR_SUPERSEDED_OBJECTS) {
+									// more than 2 minutes old and superseded by a newer one, can be removed
 									if (logger.isLoggable(Level.INFO))
 										logger.log(Level.INFO, "Removing superseded object for " + b.getKey() + ": " + b.getUuid() + " (valid since " + b.getStartTime() + "):\n" + b);
 
 									monitor.incrementCounter("evicted_superseded_objects");
 
 									objects.remove(i);
+									i--;
 								}
 							}
 
