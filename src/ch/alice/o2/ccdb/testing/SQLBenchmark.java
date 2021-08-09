@@ -17,6 +17,7 @@ import lazyj.Format;
  * @since 2017-10-16
  */
 public class SQLBenchmark {
+	
 	/**
 	 * @param args
 	 * @throws InterruptedException
@@ -61,20 +62,20 @@ public class SQLBenchmark {
 
 		final long startTime = System.currentTimeMillis();
 
-		for (long thread = 0; thread < noThreads; thread++) {
-			final long localThread = thread;
+		for (int thread = 0; thread < noThreads; thread++) {
+			final int localThread = thread;
 
 			final Thread t = new Thread() {
 				@Override
 				public void run() {
-					for (long i = 0; i < noOfObjects; i++) {
-						final SQLObject obj = new SQLObject("dummy");
+					for (int i = 0; i < noOfObjects; i++) {
+						final SQLObject obj = SQLObject.fromPath("dummy");
 
 						obj.validFrom = (base + i + localThread * noOfObjects) * 160;
 						obj.validUntil = obj.validFrom + 600000;
 
-						obj.fileName = "some_new_detector_object.root";
-						obj.contentType = "application/octet-stream";
+						obj.fileName =  "some_new_detector_object.root";
+						obj.setContentType("application/octet-stream");
 						obj.uploadedFrom = "127.0.0.1";
 						obj.size = base + localThread * noOfObjects + i;
 						obj.md5 = "7e8fbee4f76f7079ec87bdc83d7d5538";

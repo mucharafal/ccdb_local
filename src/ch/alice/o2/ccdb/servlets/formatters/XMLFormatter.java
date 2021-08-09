@@ -47,7 +47,7 @@ class XMLFormatter implements SQLFormatter {
 		writer.print(Format.escHtml(obj.fileName));
 
 		writer.print("' contentType='");
-		writer.print(Format.escHtml(obj.contentType));
+		writer.print(Format.escHtml(obj.getContentType()));
 
 		writer.print("' size='");
 		writer.print(obj.size);
@@ -57,9 +57,9 @@ class XMLFormatter implements SQLFormatter {
 
 		writer.print("'>\n");
 
-		for (final Map.Entry<Integer, String> entry : obj.metadata.entrySet()) {
+		for (final Map.Entry<String, String> entry : obj.getMetadataKeyValue().entrySet()) {
 			writer.print("  <metadata key='");
-			writer.print(Format.escHtml(SQLObject.getMetadataString(entry.getKey())));
+			writer.print(Format.escHtml(entry.getKey()));
 			writer.print("' value='");
 			writer.print(Format.escHtml(entry.getValue()));
 			writer.print("'/>\n");

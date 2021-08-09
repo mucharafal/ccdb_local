@@ -194,8 +194,7 @@ public class Synchronization {
 	}
 
 	/**
-	 * @param i
-	 * @param attributes
+	 * @param n //todo fill
 	 */
 	private static void checkEntity(final Node n) {
 		final NamedNodeMap attr = n.getAttributes();
@@ -218,7 +217,7 @@ public class Synchronization {
 
 				final String sourceURL = sourceRepo + "/" + sourcePath + "/" + validFrom + "/" + id + "?HTTPOnly=true";
 
-				final SQLObject toUpload = new SQLObject(null, sourcePath, UUID.fromString(id));
+				final SQLObject toUpload = SQLObject.fromRequest(null, sourcePath, UUID.fromString(id));
 
 				final File localFile = toUpload.getLocalFile(true);
 
@@ -236,7 +235,7 @@ public class Synchronization {
 					}
 
 					toUpload.fileName = fileName;
-					toUpload.contentType = attr.getNamedItem("contentType").getNodeValue();
+					toUpload.setContentType(attr.getNamedItem("contentType").getNodeValue());
 					toUpload.md5 = attr.getNamedItem("md5").getNodeValue();
 					toUpload.lastModified = Long.parseLong(attr.getNamedItem("lastModified").getNodeValue());
 					toUpload.validFrom = Long.parseLong(validFrom);

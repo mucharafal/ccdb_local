@@ -111,8 +111,8 @@ public class SQLtoHTTP implements SQLNotifier {
 
 			objectPath.append(object.getPath()).append('/').append(object.validFrom).append('/').append(object.validUntil).append('/').append(object.id);
 
-			for (final Map.Entry<Integer, String> entry : object.metadata.entrySet())
-				objectPath.append('/').append(Format.encode(SQLObject.getMetadataString(entry.getKey()))).append('=').append(Format.encode(entry.getValue()));
+			for (final Map.Entry<String, String> entry : object.getMetadataKeyValue().entrySet())
+				objectPath.append('/').append(Format.encode(entry.getKey())).append('=').append(Format.encode(entry.getValue()));
 
 			final URL url = new URL(target, objectPath.toString());
 
@@ -137,7 +137,7 @@ public class SQLtoHTTP implements SQLNotifier {
 				final String partName = object.getProperty("partName", "blob");
 
 				final String mpHeader = "Content-Disposition: form-data; name=\"" + partName + "\"; filename=\"" + object.fileName + "\"\r\n" + "Content-Length: " + object.size + "\r\n"
-						+ "Content-Type: " + object.contentType + "\r\n" + "\r\n";
+						+ "Content-Type: " + object.getContentType() + "\r\n" + "\r\n";
 
 				out.write(mpHeader.getBytes(StandardCharsets.UTF_8));
 

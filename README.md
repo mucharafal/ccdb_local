@@ -17,3 +17,16 @@ The project requires a JDK on the local machine to compile. Any version after 8 
 Most of the dependencies (JAliEn, ApMon, MonALISA, LazyJ, BouncyCastle) are already in the *lib/* folder. Tomcat and the PostgreSQL driver are however downloaded first time they are needed using **download-tomcat.sh** from the same folder. Adjust this script in case you want to use a different Tomcat version.
 
 ## Running
+
+### SQL 
+Config file:
+Name: `config.properties`
+Content:
+```properties
+driver=org.postgresql.Driver
+  host=localhost
+  port=9999
+  database=ccdb
+  user=postgres
+  password=abc
+```

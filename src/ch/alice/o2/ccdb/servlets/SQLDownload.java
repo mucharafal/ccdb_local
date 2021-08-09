@@ -92,7 +92,7 @@ public class SQLDownload extends HttpServlet {
 		if (head) {
 			response.setContentLengthLong(obj.size);
 			response.setHeader("Content-Disposition", "inline;filename=\"" + obj.fileName + "\"");
-			response.setHeader("Content-Type", obj.contentType);
+			response.setHeader("Content-Type", obj.getContentType());
 			response.setHeader("Accept-Ranges", "bytes");
 			SQLBacked.setMD5Header(obj, response);
 
@@ -112,7 +112,7 @@ public class SQLDownload extends HttpServlet {
 			response.setHeader("Accept-Ranges", "bytes");
 			response.setContentLengthLong(obj.size);
 			response.setHeader("Content-Disposition", "inline;filename=\"" + obj.fileName + "\"");
-			response.setHeader("Content-Type", obj.contentType);
+			response.setHeader("Content-Type", obj.getContentType());
 			SQLBacked.setMD5Header(obj, response);
 
 			try (InputStream is = new FileInputStream(localFile); OutputStream os = response.getOutputStream()) {
@@ -223,7 +223,7 @@ public class SQLDownload extends HttpServlet {
 			response.setContentLengthLong(toCopy);
 			response.setHeader("Content-Range", "bytes " + first + "-" + last + "/" + obj.size);
 			response.setHeader("Content-Disposition", "inline;filename=\"" + obj.fileName + "\"");
-			response.setHeader("Content-Type", obj.contentType);
+			response.setHeader("Content-Type", obj.getContentType());
 
 			try (RandomAccessFile input = new RandomAccessFile(localFile, "r"); OutputStream output = response.getOutputStream()) {
 				input.seek(first);
@@ -254,7 +254,7 @@ public class SQLDownload extends HttpServlet {
 			final StringBuilder subHeader = new StringBuilder();
 
 			subHeader.append("\r\n--").append(boundaryString);
-			subHeader.append("\r\nContent-Type: ").append(obj.contentType).append("\r\n");
+			subHeader.append("\r\nContent-Type: ").append(obj.getContentType()).append("\r\n");
 			subHeader.append("Content-Range: bytes ").append(first).append("-").append(last).append("/").append(obj.size).append("\r\n\r\n");
 
 			final String sh = subHeader.toString();

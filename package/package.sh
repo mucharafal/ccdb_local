@@ -59,9 +59,10 @@ done
 
 rm -rf src META-INF
 
-#jar -cfe sql.jar \
+# jar -cfe sql-benchmark.jar \
 #    ch.alice.o2.ccdb.testing.SQLBenchmark ch/alice/o2/ccdb/testing/SQLBenchmark.class \
-#    ch javax org lazyj
+#    ch javax org lazyj lia apmon com org utils jline joptsimple \
+#     alien config trusted_authorities.jks
 
 jar -cfe sql.jar \
     ch.alice.o2.ccdb.webserver.SQLBackedTomcat ch/alice/o2/ccdb/webserver/SQLBackedTomcat.class \
