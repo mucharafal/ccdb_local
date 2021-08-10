@@ -23,6 +23,7 @@ public class SQLObjectTestAgainstEmptyDb {
                     "delete from ccdb_contenttype where contentType in ('a', 'b', 'x', 'y');"
             );
         }
+        SQLObject.clearCaches();
     }
 
     void saveInDatabase(SQLObject object, int expectedNumberOfObjects, int expectedNumberOfPaths) {

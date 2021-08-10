@@ -6,3 +6,4 @@ eclipse-style.xml
 .idea/*
 *.iml
 out/*
+config.properties
