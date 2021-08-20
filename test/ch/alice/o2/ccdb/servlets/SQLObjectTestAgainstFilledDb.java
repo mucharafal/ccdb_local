@@ -141,6 +141,8 @@ public class SQLObjectTestAgainstFilledDb {
         SQLObject object = SQLObject.fromPath("path");
         object.setContentType("x");
         object.md5 = UUID.randomUUID().toString();
+        object.setProperty("x", "y");
+        object.setProperty("newProperty", "y");
         saveInDatabase(object, 5, 3);
     }
 
@@ -151,6 +153,15 @@ public class SQLObjectTestAgainstFilledDb {
         object.tainted = true;
         saveInDatabase(object, 4, 2);
         assertEquals("a", SQLObject.getObject(object.id).getContentType());
+    }
+
+    @Test
+    void updateMetadata() {  // todo It is possible to update only a few fields in SQLObjects, can be confusing
+        SQLObject object = SQLObject.getObject(object1Id);
+        object.setProperty("is", "a");
+        assertTrue(object.tainted);
+        saveInDatabase(object, 4, 2);
+        assertEquals("a", SQLObject.getObject(object.id).getProperty("is"));
     }
 
     /**
@@ -167,7 +178,4 @@ public class SQLObjectTestAgainstFilledDb {
         assertEquals(first.createTime, second.createTime);
         assertEquals(first.md5.replace("-", ""), second.md5); // todo is it intended? "1111-222-111" to "1111222111"
     }
-
-
-
 }
