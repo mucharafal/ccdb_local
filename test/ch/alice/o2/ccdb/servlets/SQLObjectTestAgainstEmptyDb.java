@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author rmucha
@@ -51,6 +52,7 @@ public class SQLObjectTestAgainstEmptyDb {
     void insertToDatabase() {
         SQLObject object = SQLObject.fromPath("path");
         object.setContentType("x");
+        object.setProperty("is", "the");
         object.md5 = UUID.randomUUID().toString();
         saveInDatabase(object, 1, 1);
     }
@@ -60,11 +62,25 @@ public class SQLObjectTestAgainstEmptyDb {
         SQLObject object = SQLObject.fromPath("path");
         object.setContentType("x");
         object.md5 = UUID.randomUUID().toString();
+        object.setProperty("is", "the");
         saveInDatabase(object, 1, 1);
         object.setContentType("a");
         object.tainted = true;
         saveInDatabase(object, 1, 1);
         assertEquals("a", SQLObject.getObject(object.id).getContentType());
+    }
+
+    @Test
+    void updateMetadata() {
+        SQLObject object = SQLObject.fromPath("path");
+        object.setContentType("x");
+        object.md5 = UUID.randomUUID().toString();
+        object.setProperty("is", "the");
+        saveInDatabase(object, 1, 1);
+        object.setProperty("is", "a");
+        assertTrue(object.tainted);
+        saveInDatabase(object, 1, 1);
+        assertEquals("a", SQLObject.getObject(object.id).getProperty("is"));
     }
 
     /**
