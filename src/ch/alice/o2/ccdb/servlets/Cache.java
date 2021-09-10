@@ -14,7 +14,7 @@ public class Cache {
 	private final Map<Integer, String> IDToValue = new ConcurrentHashMap<>();
 
 	/**
-	 * @param cacheActive set to `true` on the Online instance
+	 * @param cacheActive set to `false` on the Online instance (multi-master-aware)
 	 */
 	public Cache(final boolean cacheActive) {
 		this.active = cacheActive;
