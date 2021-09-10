@@ -1,7 +1,6 @@
 package ch.alice.o2.ccdb.servlets;
 
 import lazyj.DBFunctions;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -13,19 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author rmucha
  * @since 2021-08-09
  */
-public class SQLObjectTestAgainstEmptyDb {
-
-    @AfterEach
-    void tearDown() {
-        try (DBFunctions db = SQLObject.getDB()) {
-            db.query("delete from ccdb where pathid in (select pathid from ccdb_paths where path in ('a', 'b', 'x', 'y', 'path'));\n" +
-                    "delete from ccdb_paths where path in ('a', 'b', 'x', 'y', 'path');\n" +
-                    "delete from ccdb_metadata where metadataKey in ('a', 'b', 'x', 'y');\n" +
-                    "delete from ccdb_contenttype where contentType in ('a', 'b', 'x', 'y');"
-            );
-        }
-        SQLObject.clearCaches();
-    }
+public class SQLObjectTestAgainstEmptyDb implements EmptyDatabaseAfterTest {
 
     void saveInDatabase(SQLObject object, int expectedNumberOfObjects, int expectedNumberOfPaths) {
         object.save(null);
