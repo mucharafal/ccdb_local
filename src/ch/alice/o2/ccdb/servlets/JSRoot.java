@@ -43,16 +43,18 @@ public class JSRoot extends HttpServlet {
 					+ "<html lang=\"en\">\n"
 					+ "   <head>\n"
 					+ "      <meta charset=\"UTF-8\" http-equiv=\"X-UA-Compatible\" content=\"IE=Edge\">\n"
-					+ "      <title>"+Format.escHtml(fileName)+"- ROOT JS viewer</title>\n"
-					+ "      <script type=\"text/javascript\" src=\"https://root.cern.ch/js/latest/scripts/JSRootCore.js?gui\"></script>\n"
+					+ "      <title>" + Format.escHtml(fileName) + "- ROOT JS viewer</title>\n"
+					+ "      <script type=\"text/javascript\" src=\"https://root.cern.ch/js/latest/scripts/JSRoot.core.js\"></script>\n"
 					+ "   </head>\n"
 					+ "   <body>\n"
-					+ "      <div id=\"simpleGUI\" noselect=\"file\" topname=\""+Format.escHtml(fileName)+"\" file=\""+Format.escHtml(path)+"\">\n"
+					+ "     <div id=\"simpleGUI\" noselect=\"file\" topname=\"" + Format.escHtml(fileName) + "\" file=\"" + Format.escHtml(path) + "\">\n"
 					+ "         loading scripts ...\n"
 					+ "      </div>\n"
+					+ "      <script type=\"text/javascript\">\n"
+					+ "         JSROOT.buildGUI(\"simpleGUI\");\n"
+					+ "      </script>"
 					+ "   </body>\n"
-					+ "</html>\n"
-					);
+					+ "</html>\n");
 		}
 	}
 }
