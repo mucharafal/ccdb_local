@@ -30,3 +30,7 @@ driver=org.postgresql.Driver
   user=postgres
   password=abc
 ```
+
+## Deployment of CCDB
+
+Full documentation can be found [here](docs/readme.md)
