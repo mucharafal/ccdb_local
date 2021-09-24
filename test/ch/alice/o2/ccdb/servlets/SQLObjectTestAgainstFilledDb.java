@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author rmucha
  * @since 2021-08-09
  */
-public class SQLObjectTest {
+public class SQLObjectTestAgainstFilledDb {
     static final UUID object1Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0251c");
     static final UUID object3Id = UUID.fromString("a3fe6ab0-82a0-11eb-8f02-08f1eaf0253c");
 
@@ -158,7 +158,7 @@ public class SQLObjectTest {
      * @param second
      * @return `true` if everything works as expected
      */
-    public static boolean assertAreSQLObjectsEqual(SQLObject first, SQLObject second) {
+    public static void assertAreSQLObjectsEqual(SQLObject first, SQLObject second) {
         assertEquals(first, second);
         assertEquals(first.id, second.id);
         assertEquals(first.getPath(), second.getPath());
@@ -166,8 +166,8 @@ public class SQLObjectTest {
         assertEquals(first.getMetadataKeyValue(), second.getMetadataKeyValue());
         assertEquals(first.createTime, second.createTime);
         assertEquals(first.md5.replace("-", ""), second.md5); // todo is it intended? "1111-222-111" to "1111222111"
-        return true;
     }
+
 
 
 }

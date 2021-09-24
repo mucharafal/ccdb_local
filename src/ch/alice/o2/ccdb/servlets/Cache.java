@@ -1,7 +1,7 @@
 package ch.alice.o2.ccdb.servlets;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author rmucha
@@ -10,11 +10,11 @@ import java.util.Map;
 public class Cache {
 	private final boolean active;
 
-	private final Map<String, Integer> valueToID = new HashMap<>();
-	private final Map<Integer, String> IDToValue = new HashMap<>();
+	private final Map<String, Integer> valueToID = new ConcurrentHashMap<>();
+	private final Map<Integer, String> IDToValue = new ConcurrentHashMap<>();
 
 	/**
-	 * @param cacheActive set to `true` on the Online instance
+	 * @param cacheActive set to `false` on the Online instance (multi-master-aware)
 	 */
 	public Cache(final boolean cacheActive) {
 		this.active = cacheActive;
@@ -50,8 +50,10 @@ public class Cache {
 	 */
 	public void putInCache(final Integer id, final String value) {
 		if (active) {
-			valueToID.put(value, id);
-			IDToValue.put(id, value);
+			synchronized (this) {
+				valueToID.put(value, id);
+				IDToValue.put(id, value);
+			}
 		}
 	}
 
@@ -60,11 +62,19 @@ public class Cache {
 	 * @return the old value, if any was associated in the cache to this ID
 	 */
 	public String removeById(final Integer id) {
-		final String value = IDToValue.remove(id);
+		synchronized (this) {
+			final String value = IDToValue.remove(id);
 
-		if (value != null)
-			valueToID.remove(value);
+			if (value != null)
+				valueToID.remove(value);
+			return value;
+		}
+	}
 
-		return value;
+	void clear() {
+		synchronized (this) {
+			valueToID.clear();
+			IDToValue.clear();
+		}
 	}
 }
