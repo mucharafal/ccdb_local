@@ -30,6 +30,7 @@ import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.core.StandardHost;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.util.ServerInfo;
 import org.apache.catalina.valves.ErrorReportValve;
 import org.apache.tomcat.util.descriptor.web.FilterDef;
 import org.apache.tomcat.util.descriptor.web.FilterMap;
@@ -51,6 +52,9 @@ import ch.alice.o2.ccdb.Options;
  * @since 2017-10-13
  */
 public class EmbeddedTomcat extends Tomcat {
+
+	private static final String VERSION = "1.0.12";
+
 	private static transient final Monitor monitor = MonitorFactory.getMonitor(EmbeddedTomcat.class.getCanonicalName());
 
 	private static final String tempDir;
@@ -227,10 +231,34 @@ public class EmbeddedTomcat extends Tomcat {
 
 				names.add("max_threads");
 				values.add(Double.valueOf(tpe.getMaximumPoolSize()));
+
+				names.add("tomcat_version");
+				values.add(ServerInfo.getServerNumber());
+
+				names.add("ccdb_version");
+				values.add(VERSION);
 			});
 
 			return true;
 		}
+		else
+			if (executor instanceof org.apache.tomcat.util.threads.ThreadPoolExecutor) {
+				final org.apache.tomcat.util.threads.ThreadPoolExecutor tpe = (org.apache.tomcat.util.threads.ThreadPoolExecutor) executor;
+
+				monitor.addMonitoring("server_status", (names, values) -> {
+					names.add("active_threads");
+					values.add(Double.valueOf(tpe.getActiveCount()));
+
+					names.add("max_threads");
+					values.add(Double.valueOf(tpe.getMaximumPoolSize()));
+
+					names.add("tomcat_version");
+					values.add(ServerInfo.getServerNumber());
+
+					names.add("ccdb_version");
+					values.add(VERSION);
+				});
+			}
 
 		System.err.println("Cannot monitor Tomcat executor on port " + connector.getPort() + (executor != null ? " of type " + executor.getClass().getCanonicalName() : ""));
 		return false;
