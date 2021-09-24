@@ -258,6 +258,8 @@ public class EmbeddedTomcat extends Tomcat {
 					names.add("ccdb_version");
 					values.add(VERSION);
 				});
+
+				return true;
 			}
 
 		System.err.println("Cannot monitor Tomcat executor on port " + connector.getPort() + (executor != null ? " of type " + executor.getClass().getCanonicalName() : ""));
