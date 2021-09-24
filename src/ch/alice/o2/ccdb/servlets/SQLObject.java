@@ -1120,4 +1120,10 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	public static Integer absHashCode(final Object o) {
 		return Integer.valueOf((int) (Math.abs((long) (o.hashCode()) % Integer.MAX_VALUE)) + 1);
 	}
+
+	static void clearCaches() {
+		pathsCache.clear();
+		metadataCache.clear();
+		contentTypeCache.clear();
+	}
 }

@@ -9,7 +9,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class SQLObjectCachelessImplTest extends SQLObjectTest {
+class SQLObjectCachelessImplTestAgainstFilledDb extends SQLObjectTestAgainstFilledDb {
     @BeforeAll
     static void setToMultiMasterVersion() {
         SQLObject.multiMasterVersion = true;
