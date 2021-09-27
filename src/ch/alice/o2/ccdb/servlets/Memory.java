@@ -52,12 +52,17 @@ public class Memory extends HttpServlet {
 
 	static final boolean REDIRECT_TO_UPSTREAM;
 
-	static final String UPSTREAM_URL;
+	private static final String UPSTREAM_URL;
 
 	static {
-		final String recoveryURL = Options.getOption("udp_receiver.recovery_url", "http://o2-ccdb.internal/");
+		final String recoveryURL = Options.getOption("udp_receiver.recovery_url", "http://o2-ccdb.internal");
 
-		UPSTREAM_URL = Options.getOption("memory.redirect_changes_url", recoveryURL);
+		String upstream = Options.getOption("memory.redirect_changes_url", recoveryURL);
+
+		while (upstream.endsWith("/"))
+			upstream = upstream.substring(0, upstream.length() - 1);
+
+		UPSTREAM_URL = upstream;
 
 		if (Options.getIntOption("memory.redirect_changes", 1) > 0) {
 			if (UPSTREAM_URL != null && UPSTREAM_URL.length() > 0) {
@@ -99,7 +104,7 @@ public class Memory extends HttpServlet {
 		if (prepare && REDIRECT_TO_UPSTREAM) {
 			// go to the authoritative source to make sure the correct object version is distributed to everybody
 			response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-			response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+			response.setHeader("Location", getLocationURL(request));
 			return;
 		}
 
@@ -127,7 +132,7 @@ public class Memory extends HttpServlet {
 
 			if (REDIRECT_TO_UPSTREAM) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 			}
 			else
 				response.sendError(HttpServletResponse.SC_NOT_FOUND, "No matching objects found");
@@ -290,32 +295,33 @@ public class Memory extends HttpServlet {
 					return;
 				}
 			}
-			else if (idx == 0) {
-				// a single negative value means 'last N bytes'
-				start = Long.parseLong(s.substring(idx + 1));
+			else
+				if (idx == 0) {
+					// a single negative value means 'last N bytes'
+					start = Long.parseLong(s.substring(idx + 1));
 
-				end = payloadSize - 1;
+					end = payloadSize - 1;
 
-				start = end - start + 1;
+					start = end - start + 1;
 
-				if (start < 0) {
-					response.setHeader("Content-Range", "bytes */" + payloadSize);
-					response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE,
-							"You requested more last bytes (" + s.substring(idx + 1) + ") from the end of the file than the file actually has (" + payloadSize + ")");
-					start = 0;
+					if (start < 0) {
+						response.setHeader("Content-Range", "bytes */" + payloadSize);
+						response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE,
+								"You requested more last bytes (" + s.substring(idx + 1) + ") from the end of the file than the file actually has (" + payloadSize + ")");
+						start = 0;
+					}
 				}
-			}
-			else {
-				start = Long.parseLong(s);
+				else {
+					start = Long.parseLong(s);
 
-				if (start >= payloadSize) {
-					response.setHeader("Content-Range", "bytes */" + payloadSize);
-					response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE, "You requested an invalid range, starting beyond the end of the file (" + start + ")");
-					return;
+					if (start >= payloadSize) {
+						response.setHeader("Content-Range", "bytes */" + payloadSize);
+						response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE, "You requested an invalid range, starting beyond the end of the file (" + start + ")");
+						return;
+					}
+
+					end = payloadSize - 1;
 				}
-
-				end = payloadSize - 1;
-			}
 
 			requestedRanges.add(new AbstractMap.SimpleEntry<>(Long.valueOf(start), Long.valueOf(end)));
 		}
@@ -419,7 +425,7 @@ public class Memory extends HttpServlet {
 		try (Timing t = new Timing(monitor, "POST_ms")) {
 			if (REDIRECT_TO_UPSTREAM && request.getHeader("Force-Upload") == null) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 
 				return;
 			}
@@ -519,12 +525,21 @@ public class Memory extends HttpServlet {
 		}
 	}
 
+	static final String getLocationURL(final HttpServletRequest request) {
+		String upstreamLocation = UPSTREAM_URL + request.getPathInfo();
+
+		if (request.getQueryString() != null)
+			upstreamLocation += "?" + request.getQueryString();
+
+		return upstreamLocation;
+	}
+	
 	@Override
 	protected void doPut(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		try (Timing t = new Timing(monitor, "PUT_ms")) {
 			if (REDIRECT_TO_UPSTREAM && request.getParameter("Force-Update") == null) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 
 				return;
 			}
@@ -538,7 +553,7 @@ public class Memory extends HttpServlet {
 		try (Timing t = new Timing(monitor, "DELETE_ms")) {
 			if (REDIRECT_TO_UPSTREAM && request.getParameter("Force-Delete") == null) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 
 				return;
 			}
@@ -570,10 +585,11 @@ public class Memory extends HttpServlet {
 
 						if (b == null)
 							it.remove();
-						else if (b.equals(matchingObject)) {
-							it.remove();
-							break;
-						}
+						else
+							if (b.equals(matchingObject)) {
+								it.remove();
+								break;
+							}
 					}
 				}
 			}

@@ -53,7 +53,7 @@ public class MemoryBrowse extends HttpServlet {
 		if (prepare && parser.latestFlag && Memory.REDIRECT_TO_UPSTREAM) {
 			// go to the authoritative source to make sure the correct object version is distributed to everybody
 			response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-			response.setHeader("Location", Memory.UPSTREAM_URL + request.getPathInfo());
+			response.setHeader("Location", Memory.getLocationURL(request));
 		}
 
 		final Collection<Blob> matchingObjects = getAllMatchingObjects(parser);
