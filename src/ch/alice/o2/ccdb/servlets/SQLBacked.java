@@ -521,60 +521,56 @@ public class SQLBacked extends HttpServlet {
 					db.query("CREATE TRIGGER ccdb_decrement_trigger AFTER DELETE ON ccdb FOR EACH ROW EXECUTE PROCEDURE ccdb_decrement();", true);
 
 					// cache-less utils
-					if (multiMasterVersion) {
-						System.err.println("Multi-master (cache-less) aware version");
-						final HashMap<String, String> idNameInTable = new HashMap<>();
-						idNameInTable.put("ccdb_paths", "pathid");
-						idNameInTable.put("ccdb_contenttype", "contentTypeId");
+					
+					final HashMap<String, String> idNameInTable = new HashMap<>();
+					idNameInTable.put("ccdb_paths", "pathid");
+					idNameInTable.put("ccdb_contenttype", "contentTypeId");
 
-						final HashMap<String, String> valueNameInTable = new HashMap<>();
-						valueNameInTable.put("ccdb_paths", "path");
-						valueNameInTable.put("ccdb_contenttype", "contentType");
+					final HashMap<String, String> valueNameInTable = new HashMap<>();
+					valueNameInTable.put("ccdb_paths", "path");
+					valueNameInTable.put("ccdb_contenttype", "contentType");
 
-						final String[] tables = { "ccdb_paths", "ccdb_contenttype" };
-						for (final String tableName : tables) {
-							final String idName = idNameInTable.get(tableName);
-							final String valueName = valueNameInTable.get(tableName);
-							db.query("create or replace function " + tableName + "_latest (value_to_insert text) returns bigint as $$\n"
-									+ "begin\n"
-									+ "    return (select " + idName + " from " + tableName + " where " + valueName + " = value_to_insert);\n"
-									+ "end $$ language plpgsql;");
-						}
-
-						db.query("create or replace function ccdb_metadata_latest_keyid_value (values_to_insert hstore) returns hstore as $$\n" +
-								"declare \n" +
-								"	actual_ids_to_insert hstore := ''::hstore;\n" +
-								"	value text;\n" +
-								"begin\n" +
-								"	foreach value in array akeys(values_to_insert) loop\n" +
-								"		actual_ids_to_insert := actual_ids_to_insert || hstore((select metadataId from ccdb_metadata where metadataKey = value)::text, values_to_insert -> value);\n" +
-								"	end loop;\n" +
-								"	return actual_ids_to_insert;\n" +
-								"end\n" +
-								"$$ language plpgsql;");
-						db.query("create or replace function ccdb_metadata_latest_key_value (keyid_value hstore) returns hstore as $$\n" +
-								"declare \n" +
-								"    key_value hstore := ''::hstore;\n" +
-								"    id integer;\n" +
-								"begin\n" +
-								"    foreach id in array akeys(keyid_value) loop\n" +
-								"        key_value := key_value || hstore((select metadataKey from ccdb_metadata where metadataId = id)::text, keyid_value -> cast(id as text));\n" +
-								"    end loop;\n" +
-								"    return key_value;\n" +
-								"end\n" +
-								"$$ language plpgsql;\n");
-						db.query("create view ccdb_view as \n" +
-								"    select ccdb.*, \n" +
-								"        paths.path as path, \n" +
-								"        ctype.contenttype as contenttype_value, \n" +
-								"        ccdb_metadata_latest_key_value(ccdb.metadata) as metadata_key_value\n" +
-								"    from ccdb  \n" +
-								"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
-								"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;");
+					final String[] tables = { "ccdb_paths", "ccdb_contenttype" };
+					for (final String tableName : tables) {
+						final String idName = idNameInTable.get(tableName);
+						final String valueName = valueNameInTable.get(tableName);
+						db.query("create or replace function " + tableName + "_latest (value_to_insert text) returns bigint as $$\n"
+								+ "begin\n"
+								+ "    return (select " + idName + " from " + tableName + " where " + valueName + " = value_to_insert);\n"
+								+ "end $$ language plpgsql;");
 					}
-					else {
-						System.err.println("Non multi master version");
-					}
+
+					db.query("create or replace function ccdb_metadata_latest_keyid_value (values_to_insert hstore) returns hstore as $$\n" +
+							"declare \n" +
+							"	actual_ids_to_insert hstore := ''::hstore;\n" +
+							"	value text;\n" +
+							"begin\n" +
+							"	foreach value in array akeys(values_to_insert) loop\n" +
+							"		actual_ids_to_insert := actual_ids_to_insert || hstore((select metadataId from ccdb_metadata where metadataKey = value)::text, values_to_insert -> value);\n" +
+							"	end loop;\n" +
+							"	return actual_ids_to_insert;\n" +
+							"end\n" +
+							"$$ language plpgsql;");
+					db.query("create or replace function ccdb_metadata_latest_key_value (keyid_value hstore) returns hstore as $$\n" +
+							"declare \n" +
+							"    key_value hstore := ''::hstore;\n" +
+							"    id integer;\n" +
+							"begin\n" +
+							"    foreach id in array akeys(keyid_value) loop\n" +
+							"        key_value := key_value || hstore((select metadataKey from ccdb_metadata where metadataId = id)::text, keyid_value -> cast(id as text));\n" +
+							"    end loop;\n" +
+							"    return key_value;\n" +
+							"end\n" +
+							"$$ language plpgsql;\n");
+					db.query("create view ccdb_view as \n" +
+							"    select ccdb.*, \n" +
+							"        paths.path as path, \n" +
+							"        ctype.contenttype as contenttype_value, \n" +
+							"        ccdb_metadata_latest_key_value(ccdb.metadata) as metadata_key_value\n" +
+							"    from ccdb  \n" +
+							"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
+							"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;"
+					);
 				}
 				else
 					throw new IllegalArgumentException("Only PostgreSQL support is implemented at the moment");
