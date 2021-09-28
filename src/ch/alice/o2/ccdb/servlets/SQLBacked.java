@@ -394,7 +394,9 @@ public class SQLBacked extends HttpServlet {
 
 		final String username = account.getName();
 
-		if (path.startsWith("/Users/" + username.charAt(0) + "/" + username + "/"))
+		final String match = "Users/" + username.charAt(0) + "/" + username + "/";
+
+		if (path.startsWith(match))
 			return true;
 
 		return false;
