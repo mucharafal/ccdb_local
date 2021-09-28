@@ -59,6 +59,8 @@ public class EmbeddedTomcat extends Tomcat {
 
 	private static final String tempDir;
 
+	private static int enforceSSL = 0;
+
 	static {
 		System.setProperty("force_fork", "false");
 
@@ -344,7 +346,9 @@ public class EmbeddedTomcat extends Tomcat {
 
 		ctx.setLoginConfig(loginConfig);
 
-		if (Options.getIntOption("ccdb.ssl.enforce", 1) > 1) {
+		enforceSSL = Options.getIntOption("ccdb.ssl.enforce", 1);
+
+		if (enforceSSL > 1) {
 			addSecurityConstraint(getAddOrUpdateConstraint());
 			addSecurityConstraint(getRemovalConstraint());
 		}
@@ -374,7 +378,7 @@ public class EmbeddedTomcat extends Tomcat {
 		final SecurityConstraint addOrUpdateConstraint = new SecurityConstraint();
 		addOrUpdateConstraint.setDisplayName("SSL certificate required");
 		addOrUpdateConstraint.addCollection(defaultPath);
-		addOrUpdateConstraint.addAuthRole(Options.getOption("ldap.role", "ccdb"));
+		addOrUpdateConstraint.addAuthRole(Options.getOption("ldap.role", "users"));
 		addOrUpdateConstraint.setAuthConstraint(true);
 		addOrUpdateConstraint.setUserConstraint("CONFIDENTIAL");
 
@@ -444,5 +448,16 @@ public class EmbeddedTomcat extends Tomcat {
 		decorateConnector(connector);
 
 		return connector;
+	}
+
+	/**
+	 * @return the SSL enforcing level. Possible values are:<ul>
+	 * <li>0 : no enforcing, writing can be done on either HTTP or HTTPS</li>
+	 * <li>1 : HTTPS is required for uploads with a valid Grid identity, role is not checked</li>
+	 * <li>2 : Production roles are required for upload in arbitrary paths, other users can write in their home directories</li>
+	 * </ul>
+	 */
+	public static int getEnforceSSL() {
+		return enforceSSL;
 	}
 }

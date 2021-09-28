@@ -30,9 +30,12 @@ import alien.monitoring.Monitor;
 import alien.monitoring.MonitorFactory;
 import alien.monitoring.Timing;
 import alien.se.SEUtils;
+import alien.user.AliEnPrincipal;
+import alien.user.UserFactory;
 import ch.alice.o2.ccdb.Options;
 import ch.alice.o2.ccdb.RequestParser;
 import ch.alice.o2.ccdb.multicast.Utils;
+import ch.alice.o2.ccdb.webserver.EmbeddedTomcat;
 import lazyj.DBFunctions;
 import utils.CachedThreadPool;
 
@@ -282,6 +285,22 @@ public class SQLBacked extends HttpServlet {
 				return;
 			}
 
+			if (EmbeddedTomcat.getEnforceSSL() > 1) {
+				// Role is checked
+
+				final AliEnPrincipal account = UserFactory.get(request);
+
+				if (account == null) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "Show your ID please");
+					return;
+				}
+
+				if (!canWrite(account, parser.path)) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "You are not allowed to write to this path");
+					return;
+				}
+			}
+
 			final Part part = parts.iterator().next();
 
 			final SQLObject newObject = SQLObject.fromRequest(request, parser.path, parser.uuidConstraint);
@@ -369,6 +388,18 @@ public class SQLBacked extends HttpServlet {
 		}
 	}
 
+	private static boolean canWrite(final AliEnPrincipal account, final String path) {
+		if (account.hasRole("ccdb"))
+			return true;
+
+		final String username = account.getName();
+
+		if (path.startsWith("/Users/" + username.charAt(0) + "/" + username + "/"))
+			return true;
+
+		return false;
+	}
+
 	@Override
 	protected void doPut(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		try (Timing t = new Timing(monitor, "PUT_ms")) {
@@ -384,6 +415,22 @@ public class SQLBacked extends HttpServlet {
 			if (matchingObject == null) {
 				response.sendError(HttpServletResponse.SC_NOT_FOUND, "No matching objects found");
 				return;
+			}
+
+			if (EmbeddedTomcat.getEnforceSSL() > 1) {
+				// Role is checked
+
+				final AliEnPrincipal account = UserFactory.get(request);
+
+				if (account == null) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "Show your ID please");
+					return;
+				}
+
+				if (!canWrite(account, parser.path)) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "You are not allowed to modify this path");
+					return;
+				}
 			}
 
 			for (final Map.Entry<String, String[]> param : request.getParameterMap().entrySet())
@@ -521,7 +568,7 @@ public class SQLBacked extends HttpServlet {
 					db.query("CREATE TRIGGER ccdb_decrement_trigger AFTER DELETE ON ccdb FOR EACH ROW EXECUTE PROCEDURE ccdb_decrement();", true);
 
 					// cache-less utils
-					
+
 					final HashMap<String, String> idNameInTable = new HashMap<>();
 					idNameInTable.put("ccdb_paths", "pathid");
 					idNameInTable.put("ccdb_contenttype", "contentTypeId");
@@ -569,8 +616,7 @@ public class SQLBacked extends HttpServlet {
 							"        ccdb_metadata_latest_key_value(ccdb.metadata) as metadata_key_value\n" +
 							"    from ccdb  \n" +
 							"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
-							"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;"
-					);
+							"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;");
 				}
 				else
 					throw new IllegalArgumentException("Only PostgreSQL support is implemented at the moment");
