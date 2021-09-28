@@ -172,14 +172,21 @@ public class SQLBacked extends HttpServlet {
 			return;
 		}
 
-		final boolean prepare = lazyj.Utils.stringToBool(request.getParameter("prepare"), false);
-
 		if (parser.cachedValue != null && matchingObject.id.equals(parser.cachedValue)) {
 			response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
 			return;
 		}
 
-		if (prepare)
+		final String rPrepare = request.getParameter("prepare");
+
+		final boolean syncPrepare = "sync".equalsIgnoreCase(rPrepare);
+
+		final boolean asyncPrepare = lazyj.Utils.stringToBool(rPrepare, false) || syncPrepare;
+
+		if (syncPrepare)
+			AsyncMulticastQueue.stage(matchingObject);
+
+		if (asyncPrepare)
 			AsyncMulticastQueue.queueObject(matchingObject);
 
 		final String clientIPAddress = request.getRemoteAddr();

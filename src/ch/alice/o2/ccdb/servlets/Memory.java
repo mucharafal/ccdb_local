@@ -132,7 +132,17 @@ public class Memory extends HttpServlet {
 
 			if (REDIRECT_TO_UPSTREAM) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", getLocationURL(request));
+
+				String location = getLocationURL(request);
+
+				if (location.indexOf('?') >= 0)
+					location += "&";
+				else
+					location += "?";
+
+				location += "prepare=sync";
+
+				response.setHeader("Location", location);
 			}
 			else
 				response.sendError(HttpServletResponse.SC_NOT_FOUND, "No matching objects found");
@@ -533,7 +543,7 @@ public class Memory extends HttpServlet {
 
 		return upstreamLocation;
 	}
-	
+
 	@Override
 	protected void doPut(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		try (Timing t = new Timing(monitor, "PUT_ms")) {
