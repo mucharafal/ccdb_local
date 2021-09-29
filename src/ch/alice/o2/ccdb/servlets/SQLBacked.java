@@ -64,7 +64,7 @@ public class SQLBacked extends HttpServlet {
 	/**
 	 * Set to `true` on the Online instance, that should not cache any IDs but always use the database values to ensure consistency
 	 */
-	public static final boolean multiMasterVersion = Options.getOption("multimaster", "false").equals("true");
+	public static final boolean multiMasterVersion = lazyj.Utils.stringToBool(Options.getOption("multimaster", null), false);
 
 	private static final boolean localCopyFirst = lazyj.Utils.stringToBool(Options.getOption("local.copy.first", null), false);
 
@@ -74,6 +74,8 @@ public class SQLBacked extends HttpServlet {
 
 	private static CachedThreadPool asyncOperations = new CachedThreadPool(16, 1, TimeUnit.SECONDS);
 
+	private static final boolean defaultSyncFetch = lazyj.Utils.stringToBool(Options.getOption("syncfetch", null), false);
+	
 	static {
 		monitor.addMonitoring("stats", new SQLStatsExporter(null));
 
@@ -186,7 +188,7 @@ public class SQLBacked extends HttpServlet {
 
 		final boolean asyncPrepare = lazyj.Utils.stringToBool(rPrepare, false) || syncPrepare;
 
-		if (syncPrepare)
+		if (syncPrepare || defaultSyncFetch)
 			AsyncMulticastQueue.stage(matchingObject);
 
 		if (asyncPrepare)
