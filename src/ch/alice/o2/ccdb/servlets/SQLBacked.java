@@ -643,10 +643,10 @@ public class SQLBacked extends HttpServlet {
 	}
 
 	private static void runStatisticsRecompute() {
-		final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-		scheduler.scheduleAtFixedRate(() -> {
-			recomputeStatistics();
-		}, 1, 1, TimeUnit.MINUTES);
+		// final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+		// scheduler.scheduleAtFixedRate(() -> {
+		// 	recomputeStatistics();
+		// }, 1, 1, TimeUnit.MINUTES);
 	}
 
 	private static void recomputeStatistics() {
