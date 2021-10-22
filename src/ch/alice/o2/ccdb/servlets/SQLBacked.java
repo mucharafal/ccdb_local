@@ -77,7 +77,7 @@ public class SQLBacked extends HttpServlet {
 	private static CachedThreadPool asyncOperations = new CachedThreadPool(16, 1, TimeUnit.SECONDS);
 
 	private static final boolean defaultSyncFetch = lazyj.Utils.stringToBool(Options.getOption("syncfetch", null), false);
-	
+
 	static {
 		monitor.addMonitoring("stats", new SQLStatsExporter(null));
 
@@ -555,6 +555,13 @@ public class SQLBacked extends HttpServlet {
 
 					db.query("CREATE TABLE IF NOT EXISTS ccdb_stats (pathid int primary key, object_count bigint default 0, object_size bigint default 0);");
 
+					db.query("CREATE TABLE IF NOT EXISTS ccdb_helper_table (key text primary key, value int);");
+
+					db.query("SELECT count(1) FROM ccdb_helper_table;");
+
+					if (db.geti(1) == 0)
+						db.query("INSERT INTO ccdb_helper_table VALUES ('ccdb_stats_tainted', 1)");
+
 					db.query("SELECT count(1) FROM ccdb_stats;");
 
 					if (db.geti(1) == 0)
@@ -632,14 +639,23 @@ public class SQLBacked extends HttpServlet {
 
 	private static void runStatisticsRecompute() {
 		final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
- 		scheduler.scheduleAtFixedRate(() -> {recomputeStatistics();}, 30, 30, TimeUnit.MINUTES);
+		scheduler.scheduleAtFixedRate(() -> {
+			recomputeStatistics();
+		}, 30, 30, TimeUnit.MINUTES);
 	}
 
 	private static void recomputeStatistics() {
 		try (DBFunctions db = SQLObject.getDB()) {
-			db.query("TRUNCATE ccdb_stats;");
-			db.query("INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;");
-			db.query("INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;");
+			db.query("SELECT value FROM ccdb_helper_table WHERE key = 'ccdb_stats_tainted'");
+
+			if (db.geti(1) == 1) {
+				db.query("BEGIN;" +
+						"TRUNCATE ccdb_stats;" +
+						"INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;" +
+						"INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;" +
+						"UPDATE ccdb_helper_table SET value = 0 WHERE key = 'ccdb_stats_tainted';" + 
+						"COMMIT;");
+			}
 		}
 	}
 }
