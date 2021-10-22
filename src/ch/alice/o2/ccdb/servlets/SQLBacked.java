@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -519,6 +521,7 @@ public class SQLBacked extends HttpServlet {
 	static {
 		// make sure the database structures exist when the server is initialized
 		createDBStructure();
+		runStatisticsRecompute();
 	}
 
 	/**
@@ -625,6 +628,11 @@ public class SQLBacked extends HttpServlet {
 				else
 					throw new IllegalArgumentException("Only PostgreSQL support is implemented at the moment");
 		}
+	}
+
+	private static void runStatisticsRecompute() {
+		final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+ 		scheduler.scheduleAtFixedRate(() -> {recomputeStatistics();}, 30, 30, TimeUnit.MINUTES);
 	}
 
 	private static void recomputeStatistics() {
