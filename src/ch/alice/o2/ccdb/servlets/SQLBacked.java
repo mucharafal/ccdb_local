@@ -646,7 +646,7 @@ public class SQLBacked extends HttpServlet {
 		final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 		scheduler.scheduleAtFixedRate(() -> {
 			recomputeStatistics();
-		}, 30, 30, TimeUnit.MINUTES);
+		}, 1, 1, TimeUnit.MINUTES);
 	}
 
 	private static void recomputeStatistics() {
