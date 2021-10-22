@@ -6,3 +6,12 @@ package/apache-tomcat*
 .codetale.conf
 .idea
 *iml
+*jar
+package/apache*
+build
+*.class
+eclipse-style.xml
+.idea/*
+*.iml
+out/*
+config.properties

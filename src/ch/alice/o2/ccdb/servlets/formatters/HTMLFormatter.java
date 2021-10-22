@@ -67,7 +67,7 @@ class HTMLFormatter implements SQLFormatter {
 		writer.print(Format.escHtml(obj.fileName));
 
 		writer.print("</td><td align=right nowrap>");
-		writer.print(Format.escHtml(obj.contentType));
+		writer.print(Format.escHtml(obj.getContentType()));
 
 		writer.print("</td><td align=right nowrap>");
 		writer.print(obj.size);
@@ -76,9 +76,9 @@ class HTMLFormatter implements SQLFormatter {
 		writer.print(Format.escHtml(obj.getPath()));
 
 		writer.print("</td><td align=left><dl>");
-		for (final Map.Entry<Integer, String> entry : obj.metadata.entrySet()) {
+		for (final Map.Entry<String, String> entry : obj.getMetadataKeyValue().entrySet()) {
 			writer.print("<dt>");
-			writer.print(Format.escHtml(SQLObject.getMetadataString(entry.getKey())));
+			writer.print(Format.escHtml(entry.getKey()));
 			writer.print("</dt><dd>");
 			writer.print(Format.escHtml(entry.getValue()));
 			writer.print("</dd>\n");

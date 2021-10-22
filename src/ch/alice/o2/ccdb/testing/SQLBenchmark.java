@@ -2,7 +2,7 @@ package ch.alice.o2.ccdb.testing;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ch.alice.o2.ccdb.RequestParser;
@@ -17,6 +17,7 @@ import lazyj.Format;
  * @since 2017-10-16
  */
 public class SQLBenchmark {
+	
 	/**
 	 * @param args
 	 * @throws InterruptedException
@@ -61,20 +62,20 @@ public class SQLBenchmark {
 
 		final long startTime = System.currentTimeMillis();
 
-		for (long thread = 0; thread < noThreads; thread++) {
-			final long localThread = thread;
+		for (int thread = 0; thread < noThreads; thread++) {
+			final int localThread = thread;
 
 			final Thread t = new Thread() {
 				@Override
 				public void run() {
-					for (long i = 0; i < noOfObjects; i++) {
-						final SQLObject obj = new SQLObject("dummy");
+					for (int i = 0; i < noOfObjects; i++) {
+						final SQLObject obj = SQLObject.fromPath("dummy");
 
 						obj.validFrom = (base + i + localThread * noOfObjects) * 160;
 						obj.validUntil = obj.validFrom + 600000;
 
-						obj.fileName = "some_new_detector_object.root";
-						obj.contentType = "application/octet-stream";
+						obj.fileName =  "some_new_detector_object.root";
+						obj.setContentType("application/octet-stream");
 						obj.uploadedFrom = "127.0.0.1";
 						obj.size = base + localThread * noOfObjects + i;
 						obj.md5 = "7e8fbee4f76f7079ec87bdc83d7d5538";
@@ -105,8 +106,6 @@ public class SQLBenchmark {
 		else
 			System.err.println("Not inserting anything, just benchmarking read times");
 
-		final Random r = new Random(System.currentTimeMillis());
-
 		final int noQueries = 10000;
 
 		for (final int queryThreads : new int[] { 1, 4, 8, 16, 24, 32 }) {
@@ -125,7 +124,7 @@ public class SQLBenchmark {
 
 							parser.path = "dummy";
 							// parser.startTime = i * rangeWidth + r.nextLong() % rangeWidth;
-							parser.startTime = Math.abs(r.nextLong() % ((base + noOfObjects * noThreads) * 160));
+							parser.startTime = Math.abs(ThreadLocalRandom.current().nextLong() % ((base + noOfObjects * noThreads) * 160));
 							parser.startTimeSet = true;
 
 							final SQLObject result = SQLObject.getMatchingObject(parser);

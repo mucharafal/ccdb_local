@@ -11,9 +11,14 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
@@ -27,9 +32,12 @@ import alien.monitoring.Monitor;
 import alien.monitoring.MonitorFactory;
 import alien.monitoring.Timing;
 import alien.se.SEUtils;
+import alien.user.AliEnPrincipal;
+import alien.user.UserFactory;
 import ch.alice.o2.ccdb.Options;
 import ch.alice.o2.ccdb.RequestParser;
 import ch.alice.o2.ccdb.multicast.Utils;
+import ch.alice.o2.ccdb.webserver.EmbeddedTomcat;
 import lazyj.DBFunctions;
 import utils.CachedThreadPool;
 
@@ -46,12 +54,19 @@ public class SQLBacked extends HttpServlet {
 
 	private static final Monitor monitor = MonitorFactory.getMonitor(SQLBacked.class.getCanonicalName());
 
+	private static Logger logger = Logger.getLogger(SQLBacked.class.getCanonicalName());
+
 	private static List<SQLNotifier> notifiers = new ArrayList<>();
 
 	/**
 	 * The base path of the file repository
 	 */
 	public static final String basePath = Options.getOption("file.repository.location", System.getProperty("user.home") + System.getProperty("file.separator") + "QC");
+
+	/**
+	 * Set to `true` on the Online instance, that should not cache any IDs but always use the database values to ensure consistency
+	 */
+	public static final boolean multiMasterVersion = lazyj.Utils.stringToBool(Options.getOption("multimaster", null), false);
 
 	private static final boolean localCopyFirst = lazyj.Utils.stringToBool(Options.getOption("local.copy.first", null), false);
 
@@ -60,6 +75,8 @@ public class SQLBacked extends HttpServlet {
 	private static boolean hasUDPSender = false;
 
 	private static CachedThreadPool asyncOperations = new CachedThreadPool(16, 1, TimeUnit.SECONDS);
+
+	private static final boolean defaultSyncFetch = lazyj.Utils.stringToBool(Options.getOption("syncfetch", null), false);
 
 	static {
 		monitor.addMonitoring("stats", new SQLStatsExporter(null));
@@ -153,6 +170,8 @@ public class SQLBacked extends HttpServlet {
 			return;
 		}
 
+		CCDBUtils.disableCaching(response);
+
 		final SQLObject matchingObject = SQLObject.getMatchingObject(parser);
 
 		if (matchingObject == null) {
@@ -160,14 +179,21 @@ public class SQLBacked extends HttpServlet {
 			return;
 		}
 
-		final boolean prepare = lazyj.Utils.stringToBool(request.getParameter("prepare"), false);
-
 		if (parser.cachedValue != null && matchingObject.id.equals(parser.cachedValue)) {
 			response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
 			return;
 		}
 
-		if (prepare)
+		final String rPrepare = request.getParameter("prepare");
+
+		final boolean syncPrepare = "sync".equalsIgnoreCase(rPrepare);
+
+		final boolean asyncPrepare = lazyj.Utils.stringToBool(rPrepare, false) || syncPrepare;
+
+		if (syncPrepare || defaultSyncFetch)
+			AsyncMulticastQueue.stage(matchingObject);
+
+		if (asyncPrepare)
 			AsyncMulticastQueue.queueObject(matchingObject);
 
 		final String clientIPAddress = request.getRemoteAddr();
@@ -201,7 +227,7 @@ public class SQLBacked extends HttpServlet {
 
 	/**
 	 * Write out the MD5 header, if known
-	 * 
+	 *
 	 * @param obj
 	 * @param response
 	 */
@@ -212,7 +238,7 @@ public class SQLBacked extends HttpServlet {
 
 	/**
 	 * Set the response headers with the internal and any user-set metadata information
-	 * 
+	 *
 	 * @param obj
 	 * @param response
 	 */
@@ -229,11 +255,8 @@ public class SQLBacked extends HttpServlet {
 
 		response.setDateHeader("Last-Modified", obj.getLastModified());
 
-		for (final Map.Entry<Integer, String> metadataEntry : obj.metadata.entrySet()) {
-			final String mdKey = SQLObject.getMetadataString(metadataEntry.getKey());
-
-			if (mdKey != null)
-				response.setHeader(mdKey, metadataEntry.getValue());
+		for (final Map.Entry<String, String> metadataEntry : obj.getMetadataKeyValue().entrySet()) {
+			response.setHeader(metadataEntry.getKey(), metadataEntry.getValue());
 		}
 	}
 
@@ -266,9 +289,25 @@ public class SQLBacked extends HttpServlet {
 				return;
 			}
 
+			if (EmbeddedTomcat.getEnforceSSL() > 1) {
+				// Role is checked
+
+				final AliEnPrincipal account = UserFactory.get(request);
+
+				if (account == null) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "Show your ID please");
+					return;
+				}
+
+				if (!canWrite(account, parser.path)) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "You are not allowed to write to this path");
+					return;
+				}
+			}
+
 			final Part part = parts.iterator().next();
 
-			final SQLObject newObject = new SQLObject(request, parser.path, parser.uuidConstraint);
+			final SQLObject newObject = SQLObject.fromRequest(request, parser.path, parser.uuidConstraint);
 
 			final File targetFile = newObject.getLocalFile(true);
 
@@ -302,7 +341,10 @@ public class SQLBacked extends HttpServlet {
 			}
 			catch (@SuppressWarnings("unused") final IOException ioe) {
 				response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Cannot upload the blob to the local file " + targetFile.getAbsolutePath());
-				targetFile.delete();
+
+				if (!targetFile.delete())
+					logger.log(Level.WARNING, "Cannot delete target file of failed upload " + targetFile.getAbsolutePath());
+
 				return;
 			}
 
@@ -311,7 +353,7 @@ public class SQLBacked extends HttpServlet {
 
 			newObject.uploadedFrom = request.getRemoteHost();
 			newObject.fileName = part.getSubmittedFileName();
-			newObject.contentType = part.getContentType();
+			newObject.setContentType(part.getContentType());
 			newObject.md5 = Utils.humanReadableChecksum(md5.digest()); // UUIDTools.getMD5(targetFile);
 			newObject.setProperty("partName", part.getName());
 
@@ -350,6 +392,20 @@ public class SQLBacked extends HttpServlet {
 		}
 	}
 
+	private static boolean canWrite(final AliEnPrincipal account, final String path) {
+		if (account.hasRole("ccdb"))
+			return true;
+
+		final String username = account.getName();
+
+		final String match = "Users/" + username.charAt(0) + "/" + username + "/";
+
+		if (path.startsWith(match))
+			return true;
+
+		return false;
+	}
+
 	@Override
 	protected void doPut(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		try (Timing t = new Timing(monitor, "PUT_ms")) {
@@ -365,6 +421,22 @@ public class SQLBacked extends HttpServlet {
 			if (matchingObject == null) {
 				response.sendError(HttpServletResponse.SC_NOT_FOUND, "No matching objects found");
 				return;
+			}
+
+			if (EmbeddedTomcat.getEnforceSSL() > 1) {
+				// Role is checked
+
+				final AliEnPrincipal account = UserFactory.get(request);
+
+				if (account == null) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "Show your ID please");
+					return;
+				}
+
+				if (!canWrite(account, parser.path)) {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN, "You are not allowed to modify this path");
+					return;
+				}
 			}
 
 			for (final Map.Entry<String, String[]> param : request.getParameterMap().entrySet())
@@ -450,6 +522,7 @@ public class SQLBacked extends HttpServlet {
 		// make sure the database structures exist when the server is initialized
 		try {
 			createDBStructure();
+			runStatisticsRecompute();
 		} catch(Throwable error) {
 			System.err.println("Error during creating DB structure: " + error.getMessage());
 			throw error;
@@ -487,6 +560,13 @@ public class SQLBacked extends HttpServlet {
 
 					db.query("CREATE TABLE IF NOT EXISTS ccdb_stats (pathid int primary key, object_count bigint default 0, object_size bigint default 0);");
 
+					db.query("CREATE TABLE IF NOT EXISTS ccdb_helper_table (key text primary key, value int);");
+
+					db.query("SELECT count(1) FROM ccdb_helper_table;");
+
+					if (db.geti(1) == 0)
+						db.query("INSERT INTO ccdb_helper_table VALUES ('ccdb_stats_tainted', 1)");
+
 					db.query("SELECT count(1) FROM ccdb_stats;");
 
 					if (db.geti(1) == 0)
@@ -505,17 +585,82 @@ public class SQLBacked extends HttpServlet {
 
 					db.query("CREATE TRIGGER ccdb_increment_trigger AFTER INSERT ON ccdb FOR EACH ROW EXECUTE PROCEDURE ccdb_increment();", true);
 					db.query("CREATE TRIGGER ccdb_decrement_trigger AFTER DELETE ON ccdb FOR EACH ROW EXECUTE PROCEDURE ccdb_decrement();", true);
+
+					// cache-less utils
+
+					final HashMap<String, String> idNameInTable = new HashMap<>();
+					idNameInTable.put("ccdb_paths", "pathid");
+					idNameInTable.put("ccdb_contenttype", "contentTypeId");
+
+					final HashMap<String, String> valueNameInTable = new HashMap<>();
+					valueNameInTable.put("ccdb_paths", "path");
+					valueNameInTable.put("ccdb_contenttype", "contentType");
+
+					final String[] tables = { "ccdb_paths", "ccdb_contenttype" };
+					for (final String tableName : tables) {
+						final String idName = idNameInTable.get(tableName);
+						final String valueName = valueNameInTable.get(tableName);
+						db.query("create or replace function " + tableName + "_latest (value_to_insert text) returns bigint as $$\n"
+								+ "begin\n"
+								+ "    return (select " + idName + " from " + tableName + " where " + valueName + " = value_to_insert);\n"
+								+ "end $$ language plpgsql;");
+					}
+
+					db.query("create or replace function ccdb_metadata_latest_keyid_value (values_to_insert hstore) returns hstore as $$\n" +
+							"declare \n" +
+							"	actual_ids_to_insert hstore := ''::hstore;\n" +
+							"	value text;\n" +
+							"begin\n" +
+							"	foreach value in array akeys(values_to_insert) loop\n" +
+							"		actual_ids_to_insert := actual_ids_to_insert || hstore((select metadataId from ccdb_metadata where metadataKey = value)::text, values_to_insert -> value);\n" +
+							"	end loop;\n" +
+							"	return actual_ids_to_insert;\n" +
+							"end\n" +
+							"$$ language plpgsql;");
+					db.query("create or replace function ccdb_metadata_latest_key_value (keyid_value hstore) returns hstore as $$\n" +
+							"declare \n" +
+							"    key_value hstore := ''::hstore;\n" +
+							"    id integer;\n" +
+							"begin\n" +
+							"    foreach id in array akeys(keyid_value) loop\n" +
+							"        key_value := key_value || hstore((select metadataKey from ccdb_metadata where metadataId = id)::text, keyid_value -> cast(id as text));\n" +
+							"    end loop;\n" +
+							"    return key_value;\n" +
+							"end\n" +
+							"$$ language plpgsql;\n");
+					db.query("create view ccdb_view as \n" +
+							"    select ccdb.*, \n" +
+							"        paths.path as path, \n" +
+							"        ctype.contenttype as contenttype_value, \n" +
+							"        ccdb_metadata_latest_key_value(ccdb.metadata) as metadata_key_value\n" +
+							"    from ccdb  \n" +
+							"        left outer join ccdb_paths as paths on ccdb.pathid = paths.pathid\n" +
+							"        left outer join ccdb_contenttype as ctype on ccdb.contenttype = ctype.contenttypeid;");
 				}
 				else
 					throw new IllegalArgumentException("Only PostgreSQL support is implemented at the moment");
 		}
 	}
 
+	private static void runStatisticsRecompute() {
+		final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+		scheduler.scheduleAtFixedRate(() -> {
+			recomputeStatistics();
+		}, 30, 30, TimeUnit.MINUTES);
+	}
+
 	private static void recomputeStatistics() {
 		try (DBFunctions db = SQLObject.getDB()) {
-			db.query("TRUNCATE ccdb_stats;");
-			db.query("INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;");
-			db.query("INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;");
+			db.query("SELECT value FROM ccdb_helper_table WHERE key = 'ccdb_stats_tainted'");
+
+			if (db.geti(1) == 1) {
+				db.query("BEGIN;" +
+						"TRUNCATE ccdb_stats;" +
+						"INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;" +
+						"INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;" +
+						"UPDATE ccdb_helper_table SET value = 0 WHERE key = 'ccdb_stats_tainted';" + 
+						"COMMIT;");
+			}
 		}
 	}
 

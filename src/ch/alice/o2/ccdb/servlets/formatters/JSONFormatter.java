@@ -115,7 +115,7 @@ class JSONFormatter implements SQLFormatter {
 			jsonContent.put("initialValidity", Long.valueOf(obj.initialValidity));
 			jsonContent.put("MD5", obj.md5);
 			jsonContent.put("fileName", obj.fileName);
-			jsonContent.put("contentType", obj.contentType);
+			jsonContent.put("contentType", obj.getContentType());
 			jsonContent.put("size", Long.valueOf(obj.size));
 		}
 
@@ -126,7 +126,7 @@ class JSONFormatter implements SQLFormatter {
 			jsonContent.put("InitialValidityLimit", Long.valueOf(obj.initialValidity));
 			jsonContent.put("Content-MD5", obj.md5);
 			jsonContent.put("Content-Disposition", "inline;filename=\"" + obj.fileName + "\"");
-			jsonContent.put("Content-Type", obj.contentType);
+			jsonContent.put("Content-Type", obj.getContentType());
 			jsonContent.put("Content-Length", Long.valueOf(obj.size));
 		}
 
@@ -134,8 +134,8 @@ class JSONFormatter implements SQLFormatter {
 			jsonContent.put("UploadedFrom", obj.uploadedFrom);
 
 		if (!hasFilter || !jsonContent.keySet().containsAll(fieldFilter)) {
-			for (final Map.Entry<Integer, String> entry : obj.metadata.entrySet())
-				jsonContent.put(SQLObject.getMetadataString(entry.getKey()), entry.getValue());
+			for (final Map.Entry<String, String> entry : obj.getMetadataKeyValue().entrySet())
+				jsonContent.put(entry.getKey(), entry.getValue());
 
 			final ArrayList<String> replicas = new ArrayList<>();
 

@@ -94,7 +94,7 @@ public class SQLtoHTTP implements SQLNotifier {
 
 	/**
 	 * Upload an SQLObject to a target repository
-	 * 
+	 *
 	 * @param object
 	 *            what to upload
 	 * @param target
@@ -107,12 +107,14 @@ public class SQLtoHTTP implements SQLNotifier {
 			if (localFile == null)
 				throw new IOException("Local file doesn't exist");
 
-			String objectPath = object.getPath() + "/" + object.validFrom + "/" + object.validUntil + "/" + object.id;
+			final StringBuilder objectPath = new StringBuilder();
 
-			for (final Map.Entry<Integer, String> entry : object.metadata.entrySet())
-				objectPath += "/" + Format.encode(SQLObject.getMetadataString(entry.getKey())) + "=" + Format.encode(entry.getValue());
+			objectPath.append(object.getPath()).append('/').append(object.validFrom).append('/').append(object.validUntil).append('/').append(object.id);
 
-			final URL url = new URL(target, objectPath);
+			for (final Map.Entry<String, String> entry : object.getMetadataKeyValue().entrySet())
+				objectPath.append('/').append(Format.encode(entry.getKey())).append('=').append(Format.encode(entry.getValue()));
+
+			final URL url = new URL(target, objectPath.toString());
 
 			// System.err.println("Making connection to " + url);
 
@@ -135,7 +137,7 @@ public class SQLtoHTTP implements SQLNotifier {
 				final String partName = object.getProperty("partName", "blob");
 
 				final String mpHeader = "Content-Disposition: form-data; name=\"" + partName + "\"; filename=\"" + object.fileName + "\"\r\n" + "Content-Length: " + object.size + "\r\n"
-						+ "Content-Type: " + object.contentType + "\r\n" + "\r\n";
+						+ "Content-Type: " + object.getContentType() + "\r\n" + "\r\n";
 
 				out.write(mpHeader.getBytes(StandardCharsets.UTF_8));
 

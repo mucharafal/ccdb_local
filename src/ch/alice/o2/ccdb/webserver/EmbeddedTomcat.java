@@ -2,6 +2,9 @@ package ch.alice.o2.ccdb.webserver;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
@@ -27,6 +30,7 @@ import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.core.StandardHost;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.util.ServerInfo;
 import org.apache.catalina.valves.ErrorReportValve;
 import org.apache.tomcat.util.descriptor.web.FilterDef;
 import org.apache.tomcat.util.descriptor.web.FilterMap;
@@ -48,9 +52,14 @@ import ch.alice.o2.ccdb.Options;
  * @since 2017-10-13
  */
 public class EmbeddedTomcat extends Tomcat {
+
+	private static final String VERSION = "1.0.12";
+
 	private static transient final Monitor monitor = MonitorFactory.getMonitor(EmbeddedTomcat.class.getCanonicalName());
 
 	private static final String tempDir;
+
+	private static int enforceSSL = 0;
 
 	static {
 		System.setProperty("force_fork", "false");
@@ -86,6 +95,8 @@ public class EmbeddedTomcat extends Tomcat {
 
 	private final StandardContext ctx;
 
+	private static final List<Logger> hardReferencesToLoggers = new ArrayList<>();
+
 	/**
 	 * @param defaultAddress
 	 *            default listening address for the Tomcat server. Either "localhost" (default for testing servers) or "*" for production instances.
@@ -102,8 +113,11 @@ public class EmbeddedTomcat extends Tomcat {
 			LogManager.getLogManager().reset();
 
 		if (debugLevel > 2) {
-			Logger.getLogger("org.apache.catalina").setLevel(Level.FINEST);
-			Logger.getLogger("alien").setLevel(Level.FINEST);
+			for (final String s : Arrays.asList("org.apache.catalina", "alien")) {
+				final Logger l = Logger.getLogger(s);
+				l.setLevel(Level.FINEST);
+				hardReferencesToLoggers.add(l);
+			}
 		}
 
 		address = Options.getOption("tomcat.address", defaultAddress);
@@ -169,21 +183,38 @@ public class EmbeddedTomcat extends Tomcat {
 		ctx.addFilterMap(filter1mapping);
 	}
 
+	private static void passConnectorProperty(final Connector connector, final String key, final int defaultValue) {
+		connector.setProperty(key, String.valueOf(Options.getIntOption(key, defaultValue)));
+	}
+
 	private void decorateConnector(final Connector connector) {
 		connector.setProperty("address", address);
 		connector.setProperty("encodedSolidusHandling", "PASS_THROUGH");
-		connector.setProperty("maxKeepAliveRequests", String.valueOf(Options.getIntOption("maxKeepAliveRequests", 1000)));
+
+		passConnectorProperty(connector, "maxKeepAliveRequests", 1000);
 
 		// large headers are needed since alternate locations include access envelopes, that are rather large (default is 8KB)
-		connector.setProperty("maxHttpHeaderSize", "100000");
+		passConnectorProperty(connector, "maxHttpHeaderSize", 100000);
 
 		// same, let's allow for a lot of custom headers to be set (default is 100)
-		connector.setProperty("maxHeaderCount", "1000");
+		passConnectorProperty(connector, "maxHeaderCount", 1000);
 
-		connector.setProperty("connectionTimeout", String.valueOf(Options.getIntOption("connectionTimeout", 10000))); // clients should be quick
+		// clients have 10s to connect
+		passConnectorProperty(connector, "connectionTimeout", 10000);
 
+		// and 5 minutes max to upload an object
 		connector.setProperty("disableUploadTimeout", "false");
-		connector.setProperty("connectionUploadTimeout", String.valueOf(Options.getIntOption("connectionTimeout", 300000))); // 5 minutes max to upload an object
+		passConnectorProperty(connector, "connectionUploadTimeout", 300000);
+
+		// default connector value is 100 in Tomcat
+		passConnectorProperty(connector, "acceptCount", 200);
+		passConnectorProperty(connector, "acceptorThreadPriority", Thread.MAX_PRIORITY);
+
+		// default number of theads in Tomcat is also 20
+		passConnectorProperty(connector, "maxThreads", 200);
+
+		// same default value as in Tomcat
+		connector.setProperty("compression", Options.getOption("compression", "off"));
 	}
 
 	/**
@@ -202,10 +233,36 @@ public class EmbeddedTomcat extends Tomcat {
 
 				names.add("max_threads");
 				values.add(Double.valueOf(tpe.getMaximumPoolSize()));
+
+				names.add("tomcat_version");
+				values.add(ServerInfo.getServerNumber());
+
+				names.add("ccdb_version");
+				values.add(VERSION);
 			});
 
 			return true;
 		}
+		else
+			if (executor instanceof org.apache.tomcat.util.threads.ThreadPoolExecutor) {
+				final org.apache.tomcat.util.threads.ThreadPoolExecutor tpe = (org.apache.tomcat.util.threads.ThreadPoolExecutor) executor;
+
+				monitor.addMonitoring("server_status", (names, values) -> {
+					names.add("active_threads");
+					values.add(Double.valueOf(tpe.getActiveCount()));
+
+					names.add("max_threads");
+					values.add(Double.valueOf(tpe.getMaximumPoolSize()));
+
+					names.add("tomcat_version");
+					values.add(ServerInfo.getServerNumber());
+
+					names.add("ccdb_version");
+					values.add(VERSION);
+				});
+
+				return true;
+			}
 
 		System.err.println("Cannot monitor Tomcat executor on port " + connector.getPort() + (executor != null ? " of type " + executor.getClass().getCanonicalName() : ""));
 		return false;
@@ -289,7 +346,9 @@ public class EmbeddedTomcat extends Tomcat {
 
 		ctx.setLoginConfig(loginConfig);
 
-		if (Options.getIntOption("ccdb.ssl.enforce", 1) > 1) {
+		enforceSSL = Options.getIntOption("ccdb.ssl.enforce", 1);
+
+		if (enforceSSL > 1) {
 			addSecurityConstraint(getAddOrUpdateConstraint());
 			addSecurityConstraint(getRemovalConstraint());
 		}
@@ -319,7 +378,7 @@ public class EmbeddedTomcat extends Tomcat {
 		final SecurityConstraint addOrUpdateConstraint = new SecurityConstraint();
 		addOrUpdateConstraint.setDisplayName("SSL certificate required");
 		addOrUpdateConstraint.addCollection(defaultPath);
-		addOrUpdateConstraint.addAuthRole(Options.getOption("ldap.role", "ccdb"));
+		addOrUpdateConstraint.addAuthRole(Options.getOption("ldap.role", "users"));
 		addOrUpdateConstraint.setAuthConstraint(true);
 		addOrUpdateConstraint.setUserConstraint("CONFIDENTIAL");
 
@@ -389,5 +448,16 @@ public class EmbeddedTomcat extends Tomcat {
 		decorateConnector(connector);
 
 		return connector;
+	}
+
+	/**
+	 * @return the SSL enforcing level. Possible values are:<ul>
+	 * <li>0 : no enforcing, writing can be done on either HTTP or HTTPS</li>
+	 * <li>1 : HTTPS is required for uploads with a valid Grid identity, role is not checked</li>
+	 * <li>2 : Production roles are required for upload in arbitrary paths, other users can write in their home directories</li>
+	 * </ul>
+	 */
+	public static int getEnforceSSL() {
+		return enforceSSL;
 	}
 }

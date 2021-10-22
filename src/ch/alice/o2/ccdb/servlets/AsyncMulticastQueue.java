@@ -1,7 +1,7 @@
 /**
  * Cache warming tool. For existing objects it implements fetching the binary content from AliEn (in case the local file is missing) and
  * sending the content via multicast to the configured targets.
- * 
+ *
  * Currently only the SQL-backed implementation can make use of it (as is the only one aware of AliEn)
  */
 package ch.alice.o2.ccdb.servlets;
@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import alien.monitoring.Monitor;
 import alien.monitoring.MonitorFactory;
@@ -25,6 +27,8 @@ import lazyj.cache.ExpirationCache;
  */
 public class AsyncMulticastQueue {
 	private static final Monitor monitor = MonitorFactory.getMonitor(AsyncMulticastQueue.class.getCanonicalName());
+
+	private static Logger logger = Logger.getLogger(SQLBacked.class.getCanonicalName());
 
 	private static ExpirationCache<UUID, UUID> recentlyBroadcastedObjects = new ExpirationCache<>();
 
@@ -73,8 +77,11 @@ public class AsyncMulticastQueue {
 					return;
 				}
 
-				if (obj != null && SQLBacked.udpSender() && sender != null)
+				if (obj != null && SQLBacked.udpSender() && sender != null) {
+					logger.log(Level.INFO, "Broadcasting " + obj.getPath() + "/" + obj.id + " of " + obj.size + " bytes");
+
 					sender.newObject(obj);
+				}
 			}
 		}
 	};
@@ -109,11 +116,16 @@ public class AsyncMulticastQueue {
 
 	private static JAliEnCOMMander commander = null;
 
+	private static synchronized void initCommander() {
+		if (commander == null)
+			commander = new JAliEnCOMMander(null, null, "CERN", null);
+	}
+
 	/**
 	 * @param obj
 	 * @return <code>true</code> if the file is ready to be sent, <code>false</code> if any problem
 	 */
-	private static boolean stage(final SQLObject obj) {
+	static boolean stage(final SQLObject obj) {
 		if (obj == null)
 			return false;
 
@@ -132,8 +144,9 @@ public class AsyncMulticastQueue {
 
 		targetObjectPath = targetObjectPath.substring(8);
 
-		if (commander == null)
-			commander = new JAliEnCOMMander(null, null, "CERN", null);
+		initCommander();
+
+		logger.log(Level.INFO, "Downloading missing file " + targetObjectPath + " to " + target.getAbsolutePath());
 
 		try (Timing t = new Timing(monitor, "stage_in_ms")) {
 			try {

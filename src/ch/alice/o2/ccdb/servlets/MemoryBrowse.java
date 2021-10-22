@@ -48,10 +48,12 @@ public class MemoryBrowse extends HttpServlet {
 
 		final RequestParser parser = new RequestParser(request, true);
 
+		CCDBUtils.disableCaching(response);
+
 		if (prepare && parser.latestFlag && Memory.REDIRECT_TO_UPSTREAM) {
 			// go to the authoritative source to make sure the correct object version is distributed to everybody
 			response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-			response.setHeader("Location", Memory.UPSTREAM_URL + request.getPathInfo());
+			response.setHeader("Location", Memory.getLocationURL(request));
 		}
 
 		final Collection<Blob> matchingObjects = getAllMatchingObjects(parser);
@@ -87,16 +89,16 @@ public class MemoryBrowse extends HttpServlet {
 				// in showing them, so just skip this section.
 				formatter.subfoldersListingHeader(pw);
 
-				String suffix = "";
+				final StringBuilder suffix = new StringBuilder();
 
 				if (parser.startTimeSet)
-					suffix += "/" + parser.startTime;
+					suffix.append('/').append(parser.startTime);
 
 				if (parser.uuidConstraint != null)
-					suffix += "/" + parser.uuidConstraint;
+					suffix.append('/').append(parser.uuidConstraint);
 
 				for (final Map.Entry<String, String> entry : parser.flagConstraints.entrySet())
-					suffix += "/" + entry.getKey() + "=" + entry.getValue();
+					suffix.append('/').append(entry.getKey()).append('=').append(entry.getValue());
 
 				// TODO: search for all keys that have as prefix the current parser.path
 

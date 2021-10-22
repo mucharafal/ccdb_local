@@ -2,6 +2,7 @@ package ch.alice.o2.ccdb.servlets;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 
 import javax.servlet.ServletException;
@@ -49,18 +50,23 @@ public class SQLTruncate extends HttpServlet {
 
 				response.sendError(HttpServletResponse.SC_NO_CONTENT);
 
-				final List<Integer> pathIDs = SQLObject.getPathIDsWithPatternFallback(parser);
+				try (DBFunctions db = SQLObject.getDB()) {
+					SQLObject.selectFromCcdbPaths("pathid", parser.path, db);
 
-				if (pathIDs != null)
-					try (DBFunctions db = SQLObject.getDB()) {
-						for (final Integer pathID : pathIDs) {
-							db.query("SELECT 1 FROM ccdb WHERE pathid=? LIMIT 1;", false, pathID);
+					final List<Integer> pathIds = new LinkedList<>();
 
-							if (!db.moveNext())
-								if (db.query("DELETE FROM ccdb_paths WHERE pathid=?;", false, pathID))
-									SQLObject.removePathID(pathID);
-						}
+					while (db.moveNext())
+						pathIds.add(Integer.valueOf(db.geti(1)));
+
+					for (final Integer pathID : pathIds) {
+						db.query("SELECT 1 FROM ccdb WHERE pathid=? LIMIT 1;", false, pathID);
+
+						if (!db.moveNext())
+							if (db.query("DELETE FROM ccdb_paths WHERE pathid=?;", false, pathID))
+								SQLObject.removePathID(pathID);
 					}
+
+				}
 			}
 			else
 				response.sendError(HttpServletResponse.SC_NOT_MODIFIED);

@@ -83,7 +83,7 @@ public class RequestParser {
 	/**
 	 * Will be set to true when during the processing it is found to be a pattern
 	 */
-	public boolean wildcardMatching = false;
+	public boolean wildcardMatching = false; // todo should not it be set during initialization?
 
 	/**
 	 * If strictly positive, return the most recent L number of objects.
@@ -133,7 +133,7 @@ public class RequestParser {
 		ok = true;
 
 		try {
-			String browseLimitHeader = request.getHeader("Browse-Limit");
+			final String browseLimitHeader = request.getHeader("Browse-Limit");
 
 			if (browseLimitHeader != null && !browseLimitHeader.isBlank())
 				browseLimit = Integer.parseInt(browseLimitHeader);

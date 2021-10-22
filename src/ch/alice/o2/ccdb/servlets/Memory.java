@@ -52,12 +52,17 @@ public class Memory extends HttpServlet {
 
 	static final boolean REDIRECT_TO_UPSTREAM;
 
-	static final String UPSTREAM_URL;
+	private static final String UPSTREAM_URL;
 
 	static {
-		final String recoveryURL = Options.getOption("udp_receiver.recovery_url", "http://alice-ccdb.cern.ch:8080/");
+		final String recoveryURL = Options.getOption("udp_receiver.recovery_url", "http://o2-ccdb.internal");
 
-		UPSTREAM_URL = Options.getOption("memory.redirect_changes_url", recoveryURL);
+		String upstream = Options.getOption("memory.redirect_changes_url", recoveryURL);
+
+		while (upstream.endsWith("/"))
+			upstream = upstream.substring(0, upstream.length() - 1);
+
+		UPSTREAM_URL = upstream;
 
 		if (Options.getIntOption("memory.redirect_changes", 1) > 0) {
 			if (UPSTREAM_URL != null && UPSTREAM_URL.length() > 0) {
@@ -99,7 +104,7 @@ public class Memory extends HttpServlet {
 		if (prepare && REDIRECT_TO_UPSTREAM) {
 			// go to the authoritative source to make sure the correct object version is distributed to everybody
 			response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-			response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+			response.setHeader("Location", getLocationURL(request));
 			return;
 		}
 
@@ -118,6 +123,8 @@ public class Memory extends HttpServlet {
 
 		final Blob matchingObject = getMatchingObject(parser);
 
+		CCDBUtils.disableCaching(response);
+
 		if (matchingObject == null) {
 			monitor.incrementCacheMisses("memcache");
 
@@ -125,7 +132,17 @@ public class Memory extends HttpServlet {
 
 			if (REDIRECT_TO_UPSTREAM) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+
+				String location = getLocationURL(request);
+
+				if (location.indexOf('?') >= 0)
+					location += "&";
+				else
+					location += "?";
+
+				location += "prepare=sync";
+
+				response.setHeader("Location", location);
 			}
 			else
 				response.sendError(HttpServletResponse.SC_NOT_FOUND, "No matching objects found");
@@ -188,7 +205,7 @@ public class Memory extends HttpServlet {
 		for (final Map.Entry<String, String> entry : metadata.entrySet()) {
 			final String key = entry.getKey();
 
-			if (key.equals("Last-Modified") || key.equals("Date") || key.equals("ETag"))
+			if ("Last-Modified".equals(key) || "Date".equals(key) || "ETag".equals(key))
 				continue;
 
 			response.setHeader(entry.getKey(), entry.getValue());
@@ -418,7 +435,7 @@ public class Memory extends HttpServlet {
 		try (Timing t = new Timing(monitor, "POST_ms")) {
 			if (REDIRECT_TO_UPSTREAM && request.getHeader("Force-Upload") == null) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 
 				return;
 			}
@@ -519,12 +536,21 @@ public class Memory extends HttpServlet {
 		}
 	}
 
+	static final String getLocationURL(final HttpServletRequest request) {
+		String upstreamLocation = UPSTREAM_URL + request.getPathInfo();
+
+		if (request.getQueryString() != null)
+			upstreamLocation += "?" + request.getQueryString();
+
+		return upstreamLocation;
+	}
+
 	@Override
 	protected void doPut(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		try (Timing t = new Timing(monitor, "PUT_ms")) {
 			if (REDIRECT_TO_UPSTREAM && request.getParameter("Force-Update") == null) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 
 				return;
 			}
@@ -538,7 +564,7 @@ public class Memory extends HttpServlet {
 		try (Timing t = new Timing(monitor, "DELETE_ms")) {
 			if (REDIRECT_TO_UPSTREAM && request.getParameter("Force-Delete") == null) {
 				response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				response.setHeader("Location", UPSTREAM_URL + request.getPathInfo());
+				response.setHeader("Location", getLocationURL(request));
 
 				return;
 			}

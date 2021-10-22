@@ -93,6 +93,8 @@ public class Blob implements Comparable<Blob> {
 
 	private volatile boolean isCompleteRecalculate = true;
 
+	private volatile long supersededTimestamp = 0;
+
 	/**
 	 * Parameterized constructor - creates a Blob object to be sent that contains a
 	 * payload and a checksum. The checksum is the Utils.CHECKSUM_TYPE of the
@@ -230,8 +232,8 @@ public class Blob implements Comparable<Blob> {
 
 		cachedMetadataMap = new ConcurrentHashMap<>();
 
-		for (final Map.Entry<Integer, String> entry : ref.metadata.entrySet())
-			cachedMetadataMap.put(SQLObject.getMetadataString(entry.getKey()), entry.getValue());
+		for (final Map.Entry<String, String> entry : ref.getMetadataKeyValue().entrySet())
+			cachedMetadataMap.put(entry.getKey(), entry.getValue());
 
 		cachedMetadataMap.put("Valid-Until", String.valueOf(this.endTime));
 		cachedMetadataMap.put("Valid-From", String.valueOf(this.startTime));
@@ -241,8 +243,8 @@ public class Blob implements Comparable<Blob> {
 		if (ref.fileName != null)
 			cachedMetadataMap.put("OriginalFileName", ref.fileName);
 
-		if (ref.contentType != null)
-			cachedMetadataMap.put("Content-Type", ref.contentType);
+		if (ref.getContentType() != null)
+			cachedMetadataMap.put("Content-Type", ref.getContentType());
 
 		if (ref.md5 != null)
 			cachedMetadataMap.put("Content-MD5", ref.md5);
@@ -997,7 +999,8 @@ public class Blob implements Comparable<Blob> {
 		if (flagConstraints.isEmpty())
 			return true;
 
-		search: for (final Map.Entry<String, String> entry : flagConstraints.entrySet()) {
+		search:
+		for (final Map.Entry<String, String> entry : flagConstraints.entrySet()) {
 			final String metadataKey = entry.getKey().trim();
 			final String value = entry.getValue().trim();
 
@@ -1113,5 +1116,19 @@ public class Blob implements Comparable<Blob> {
 
 	public void setUploadTime(long uploadTime) {
 		this.uploadTime = uploadTime;
+	}
+	
+	/**
+	 * Set the superseded time to the current timestamp, returning this time
+	 * to this and all subsequent calls to this method afterwards
+	 * 
+	 * @param currentTime timestamp to set, if not set before
+	 * @return the timestamp since the object was superseded
+	 */
+	long getOrSetSupersededTimestamp(final long currentTime) {
+		if (supersededTimestamp == 0)
+			supersededTimestamp = currentTime;
+
+		return supersededTimestamp;
 	}
 }
