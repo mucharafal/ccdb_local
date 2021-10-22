@@ -55,13 +55,13 @@ public class SQLInsertBulk {
 					int pathsSize = paths.length;
 					for (long i = 0; i < noOfObjects; i++) {
 						String path = paths[r.nextInt(pathsSize)];
-						final SQLObject obj = new SQLObject(path);
+						final SQLObject obj = SQLObject.fromPath(path);
 
 						obj.validFrom = ( i + localThread * noOfObjects) * 160;
 						obj.validUntil = obj.validFrom + 600000;
 
 						obj.fileName = "some_new_detector_object.root";
-						obj.contentType = "application/octet-stream";
+						obj.setContentType("application/octet-stream");
 						obj.uploadedFrom = "127.0.0.1";
 						obj.size = localThread * noOfObjects + i;
 						obj.md5 = "7e8fbee4f76f7079ec87bdc83d7d5538";

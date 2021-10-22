@@ -45,13 +45,13 @@ public class SQLInsertWithGivenRate {
         final Runnable insertTask = new Runnable() {
             @Override
             public void run() {
-                final SQLObject obj = new SQLObject("dummy");
+                final SQLObject obj = SQLObject.fromPath("dummy");
 
                 obj.validFrom = System.currentTimeMillis();
                 obj.validUntil = obj.validFrom + 6000;
 
                 obj.fileName = "some_new_detector_object.root";
-                obj.contentType = "application/octet-stream";
+                obj.setContentType("application/octet-stream");
                 obj.uploadedFrom = "127.0.0.1";
                 obj.size = base + noOfObjects;
                 obj.md5 = "7e8fbee4f76f7079ec87bdc83d7d5538";
