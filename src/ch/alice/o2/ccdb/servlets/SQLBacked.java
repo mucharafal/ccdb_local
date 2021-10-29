@@ -79,6 +79,10 @@ public class SQLBacked extends HttpServlet {
 
 	private static final boolean defaultSyncFetch = lazyj.Utils.stringToBool(Options.getOption("syncfetch", null), false);
 
+	static final ScheduledExecutorService recomputeStatisticsScheduler = Executors.newScheduledThreadPool(1);
+	
+	static final AtomicInteger recomputeStatisticsInnerCounter = new AtomicInteger(0);
+
 	static {
 		monitor.addMonitoring("stats", new SQLStatsExporter(null));
 
@@ -643,9 +647,6 @@ public class SQLBacked extends HttpServlet {
 					throw new IllegalArgumentException("Only PostgreSQL support is implemented at the moment");
 		}
 	}
-
-	static final ScheduledExecutorService recomputeStatisticsScheduler = Executors.newScheduledThreadPool(1);
-	static final AtomicInteger recomputeStatisticsInnerCounter = new AtomicInteger(0);
 
 	private static void runStatisticsRecompute() {
 		recomputeStatisticsScheduler.scheduleAtFixedRate(() -> {
