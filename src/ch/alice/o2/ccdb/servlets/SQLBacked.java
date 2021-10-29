@@ -647,9 +647,9 @@ public class SQLBacked extends HttpServlet {
 	static final AtomicInteger recomputeStatisticsInnerCounter = new AtomicInteger(0);
 
 	private static void runStatisticsRecompute() {
-		// recomputeStatisticsScheduler.scheduleAtFixedRate(() -> {
-		// 	recomputeStatistics();
-		// }, 30, 30, TimeUnit.MINUTES);
+		recomputeStatisticsScheduler.scheduleAtFixedRate(() -> {
+			recomputeStatistics();
+		}, 1, 1, TimeUnit.MINUTES);
 	}
 
 	private static void recomputeStatistics() {
