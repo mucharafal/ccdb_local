@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -638,6 +639,7 @@ public class SQLBacked extends HttpServlet {
 	}
 
 	static final ScheduledExecutorService recomputeStatisticsScheduler = Executors.newScheduledThreadPool(1);
+	static final AtomicInteger recomputeStatisticsInnerCounter = new AtomicInteger(0);
 
 	private static void runStatisticsRecompute() {
 		recomputeStatisticsScheduler.scheduleAtFixedRate(() -> {
@@ -649,13 +651,16 @@ public class SQLBacked extends HttpServlet {
 		try (DBFunctions db = SQLObject.getDB()) {
 			db.query("SELECT value FROM ccdb_helper_table WHERE key = 'ccdb_stats_tainted'");
 
-			if (db.geti(1) == 1) {
+			recomputeStatisticsInnerCounter.incrementAndGet();
+
+			if (db.geti(1) == 1 || recomputeStatisticsInnerCounter.get() > 4) {
 				db.query("BEGIN;" +
 						"TRUNCATE ccdb_stats;" +
 						"INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;" +
 						"INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;" +
 						"UPDATE ccdb_helper_table SET value = 0 WHERE key = 'ccdb_stats_tainted';" + 
 						"COMMIT;");
+				recomputeStatisticsInnerCounter.set(0);
 			}
 		}
 	}
