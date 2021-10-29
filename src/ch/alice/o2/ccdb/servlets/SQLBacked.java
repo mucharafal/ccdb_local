@@ -560,7 +560,7 @@ public class SQLBacked extends HttpServlet {
 					db.query("SELECT count(1) FROM ccdb_helper_table;");
 
 					if (db.geti(1) == 0)
-						db.query("INSERT INTO ccdb_helper_table VALUES ('ccdb_stats_tainted', 1)");
+						db.query("INSERT INTO ccdb_helper_table VALUES ('ccdb_stats_tainted', 1) ON CONFLICT (key) DO UPDATE SET value=1;");
 
 					db.query("SELECT count(1) FROM ccdb_stats;");
 
@@ -637,9 +637,10 @@ public class SQLBacked extends HttpServlet {
 		}
 	}
 
+	static final ScheduledExecutorService recomputeStatisticsScheduler = Executors.newScheduledThreadPool(1);
+
 	private static void runStatisticsRecompute() {
-		final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-		scheduler.scheduleAtFixedRate(() -> {
+		recomputeStatisticsScheduler.scheduleAtFixedRate(() -> {
 			recomputeStatistics();
 		}, 30, 30, TimeUnit.MINUTES);
 	}
