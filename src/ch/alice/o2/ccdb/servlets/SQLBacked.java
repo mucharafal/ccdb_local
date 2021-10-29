@@ -525,7 +525,8 @@ public class SQLBacked extends HttpServlet {
 			createDBStructure();
 			runStatisticsRecompute();
 		} catch(Throwable error) {
-			System.err.println("Error during creating DB structure: " + error.toString());
+			System.err.println("Error during creating DB structure: " + error.toString() + "\n");
+			error.printStackTrace();
 			throw error;
 		}
 	}
