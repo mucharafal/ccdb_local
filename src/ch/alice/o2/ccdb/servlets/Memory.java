@@ -440,6 +440,8 @@ public class Memory extends HttpServlet {
 				return;
 			}
 
+			final long newObjectTime = System.currentTimeMillis();
+
 			// create the given object and return the unique identifier to it
 			// URL parameters are:
 			// task name / detector name / start time [/ end time] [ / flag ]*
@@ -460,8 +462,6 @@ public class Memory extends HttpServlet {
 				response.sendError(HttpServletResponse.SC_BAD_REQUEST, "POST request doesn't contain the data to upload");
 				return;
 			}
-
-			final long newObjectTime = System.currentTimeMillis();
 
 			byte[] remoteAddress = null;
 
@@ -505,6 +505,7 @@ public class Memory extends HttpServlet {
 				newBlob.setProperty("File-Size", String.valueOf(payload.length));
 				newBlob.setProperty("Valid-From", String.valueOf(newBlob.startTime));
 				newBlob.setProperty("Valid-Until", String.valueOf(newBlob.getEndTime()));
+				newBlob.setProperty("Uploaded-At", String.valueOf(System.currentTimeMillis()));
 
 				if (newBlob.getProperty("Created") == null)
 					newBlob.setProperty("Created", String.valueOf(GUIDUtils.epochTime(targetUUID)));

@@ -102,7 +102,13 @@ public class SQLtoUDP implements SQLNotifier {
 		try (Timing t = new Timing(monitor, "UDP_object_send_ms")) {
 			final Blob b = new Blob(object);
 
-			newObject(b);
+			//b.recomputeIsComplete();
+
+			if(b.isComplete()) {
+				newObject(b);
+			} else {
+				System.err.println("Trying to send incomplete object!");
+			}
 
 			monitor.addMeasurement("UDP_send_data", object.size);
 		}
@@ -116,6 +122,7 @@ public class SQLtoUDP implements SQLNotifier {
 	 *            object to send to all configured destinations
 	 */
 	public void newObject(final Blob b) {
+		System.err.println("Sending info about new blob!");
 		for (final HostAndPort destination : destinations)
 			try {
 				b.send(destination.host, destination.port);

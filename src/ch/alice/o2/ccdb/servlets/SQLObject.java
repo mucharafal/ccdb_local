@@ -720,8 +720,9 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 	static synchronized Integer getPathID(final String path, final boolean createIfNotExists) {
 		Integer value = pathsCache.getIdFromCache(path);
 
-		if (value != null)
+		if (value != null) {
 			return value;
+		}
 
 		try (DBFunctions db = getDB()) {
 			db.query("SELECT pathid FROM ccdb_paths WHERE path=?;", false, path);
@@ -748,7 +749,6 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				// always execute the select, in case another instance has inserted it in the
 				// mean time
 				db.query("SELECT pathid FROM ccdb_paths WHERE path=?;", false, path);
-
 				if (db.moveNext()) {
 					value = Integer.valueOf(db.geti(1));
 					pathsCache.putInCache(hashId, path);
@@ -756,7 +756,6 @@ public abstract class SQLObject implements Comparable<SQLObject> {
 				}
 			}
 		}
-
 		return null;
 	}
 

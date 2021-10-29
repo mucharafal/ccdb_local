@@ -1,3 +1,11 @@
+*.class
+*.jar
+build
+package/apache-tomcat*
+.DS_STORE
+.codetale.conf
+.idea
+*iml
 *jar
 package/apache*
 build

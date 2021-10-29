@@ -14,7 +14,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -75,7 +78,11 @@ public class SQLBacked extends HttpServlet {
 	private static CachedThreadPool asyncOperations = new CachedThreadPool(16, 1, TimeUnit.SECONDS);
 
 	private static final boolean defaultSyncFetch = lazyj.Utils.stringToBool(Options.getOption("syncfetch", null), false);
+
+	static final ScheduledExecutorService recomputeStatisticsScheduler = Executors.newScheduledThreadPool(1);
 	
+	static final AtomicInteger recomputeStatisticsInnerCounter = new AtomicInteger(0);
+
 	static {
 		monitor.addMonitoring("stats", new SQLStatsExporter(null));
 
@@ -518,7 +525,14 @@ public class SQLBacked extends HttpServlet {
 
 	static {
 		// make sure the database structures exist when the server is initialized
-		createDBStructure();
+		try {
+			createDBStructure();
+			runStatisticsRecompute();
+		} catch(Throwable error) {
+			System.err.println("Error during creating DB structure: " + error.toString() + "\n");
+			error.printStackTrace();
+			throw error;
+		}
 	}
 
 	/**
@@ -551,6 +565,13 @@ public class SQLBacked extends HttpServlet {
 					System.err.println("Database connection is verified to work");
 
 					db.query("CREATE TABLE IF NOT EXISTS ccdb_stats (pathid int primary key, object_count bigint default 0, object_size bigint default 0);");
+
+					db.query("CREATE TABLE IF NOT EXISTS ccdb_helper_table (key text primary key, value int);");
+
+					db.query("SELECT count(1) FROM ccdb_helper_table;");
+
+					if (db.geti(1) == 0)
+						db.query("INSERT INTO ccdb_helper_table VALUES ('ccdb_stats_tainted', 1) ON CONFLICT (key) DO UPDATE SET value=1;");
 
 					db.query("SELECT count(1) FROM ccdb_stats;");
 
@@ -627,11 +648,31 @@ public class SQLBacked extends HttpServlet {
 		}
 	}
 
+	private static void runStatisticsRecompute() {
+		recomputeStatisticsScheduler.scheduleAtFixedRate(() -> {
+			recomputeStatistics();
+		}, 1, 1, TimeUnit.MINUTES);
+	}
+
 	private static void recomputeStatistics() {
 		try (DBFunctions db = SQLObject.getDB()) {
-			db.query("TRUNCATE ccdb_stats;");
-			db.query("INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;");
-			db.query("INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;");
+			db.query("SELECT value FROM ccdb_helper_table WHERE key = 'ccdb_stats_tainted'");
+
+			recomputeStatisticsInnerCounter.incrementAndGet();
+
+			if (db.geti(1) == 1 || recomputeStatisticsInnerCounter.get() > 4) {
+				db.query("BEGIN;" +
+						"TRUNCATE ccdb_stats;" +
+						"INSERT INTO ccdb_stats SELECT pathid, count(1), sum(size) FROM ccdb GROUP BY 1;" +
+						"INSERT INTO ccdb_stats SELECT 0, sum(object_count), sum(object_size) FROM ccdb_stats WHERE pathid!=0;" +
+						"UPDATE ccdb_helper_table SET value = 0 WHERE key = 'ccdb_stats_tainted';" + 
+						"COMMIT;");
+				recomputeStatisticsInnerCounter.set(0);
+			}
 		}
+	}
+
+	static {
+		System.err.println("Database and servlet initialized");
 	}
 }
